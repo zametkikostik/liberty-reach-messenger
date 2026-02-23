@@ -43,7 +43,7 @@ git add .
 git commit -m "Initial commit: Liberty Reach v0.3.0"
 
 # 5. Добавить remote
-git remote add origin https://github.com/YOUR_USERNAME/liberty-reach-messenger.git
+git remote add origin https://github.com/zametkikostik/liberty-reach-messenger.git
 
 # 6. Запушить
 git push -u origin main
@@ -652,7 +652,7 @@ chmod +x build-apk.sh
 adb install build/app/outputs/flutter-apk/app-release.apk
 
 # 4. Или скачать из GitHub Releases
-# https://github.com/YOUR_USERNAME/liberty-reach-messenger/releases
+# https://github.com/zametkikostik/liberty-reach-messenger/releases
 ```
 
 ---

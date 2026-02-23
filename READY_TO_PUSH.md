@@ -75,8 +75,8 @@ wrangler-secrets.*, .cloudflare.*
 # Перейти в директорию
 cd /home/kostik/liberty-reach-messenger
 
-# Добавить remote (замени YOUR_USERNAME)
-git remote add origin https://github.com/YOUR_USERNAME/liberty-reach-messenger.git
+# Добавить remote (замени zametkikostik)
+git remote add origin https://github.com/zametkikostik/liberty-reach-messenger.git
 
 # Проверить
 git remote -v
@@ -113,7 +113,7 @@ rm <файл>
 ### После пуша проверить:
 
 ```
-1. Открыть https://github.com/YOUR_USERNAME/liberty-reach-messenger
+1. Открыть https://github.com/zametkikostik/liberty-reach-messenger
 2. Проверить что все файлы на месте
 3. Проверить что README отображается
 4. Проверить что нет файлов с секретами

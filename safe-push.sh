@@ -101,7 +101,7 @@ safe_push() {
         echo -e "${RED}[!] Remote 'origin' не найден!${NC}"
         echo ""
         echo "   Добавьте remote:"
-        echo "   git remote add origin https://github.com/YOUR_USERNAME/liberty-reach-messenger.git"
+        echo "   git remote add origin https://github.com/zametkikostik/liberty-reach-messenger.git"
         echo ""
         exit 1
     fi
@@ -120,7 +120,7 @@ safe_push() {
             echo -e "${GREEN}✅ Пуш успешен!${NC}"
             echo ""
             echo "🌐 Репозиторий:"
-            echo "   https://github.com/YOUR_USERNAME/liberty-reach-messenger"
+            echo "   https://github.com/zametkikostik/liberty-reach-messenger"
             echo ""
             echo "📱 Web версия (после деплоя):"
             echo "   https://liberty-reach-messenger.pages.dev"

@@ -89,8 +89,8 @@ Platforms:
 ### Шаг 5: Добавление remote
 
 ```bash
-# Добавить remote (замени YOUR_USERNAME на свой)
-git remote add origin https://github.com/YOUR_USERNAME/liberty-reach-messenger.git
+# Добавить remote (замени zametkikostik на свой)
+git remote add origin https://github.com/zametkikostik/liberty-reach-messenger.git
 
 # Проверить
 git remote -v
@@ -108,7 +108,7 @@ git push -u origin main
 
 ### Шаг 7: Проверка на GitHub
 
-1. Открыть https://github.com/YOUR_USERNAME/liberty-reach-messenger
+1. Открыть https://github.com/zametkikostik/liberty-reach-messenger
 2. Проверить что файлы загрузились
 3. Проверить что README отображается красиво
 
@@ -271,7 +271,7 @@ git add .
 git commit -m "Initial commit"
 
 # Создание remote
-git remote add origin https://github.com/YOUR_USERNAME/liberty-reach-messenger.git
+git remote add origin https://github.com/zametkikostik/liberty-reach-messenger.git
 
 # Пуш
 git push -u origin main
@@ -284,7 +284,7 @@ git push -u origin main
 
 ## 📊 ССЫЛКИ
 
-- Репозиторий: https://github.com/YOUR_USERNAME/liberty-reach-messenger
+- Репозиторий: https://github.com/zametkikostik/liberty-reach-messenger
 - Web версия: https://liberty-reach-messenger.pages.dev
 - Документация: /docs/
 

@@ -7,7 +7,7 @@
 
 **Свобода достигайки каждого** - безопасный мессенджер нового поколения
 
-[🌐 Web Version](https://liberty-reach-messenger.pages.dev) • [📱 Download APK](https://github.com/YOUR_USERNAME/liberty-reach-messenger/releases) • [📖 Documentation](docs/)
+[🌐 Web Version](https://liberty-reach-messenger.pages.dev) • [📱 Download APK](https://github.com/zametkikostik/liberty-reach-messenger/releases) • [📖 Documentation](docs/)
 
 ---
 
@@ -56,7 +56,7 @@ https://liberty-reach-messenger.pages.dev
 
 ```bash
 # Скачать APK
-wget https://github.com/YOUR_USERNAME/liberty-reach-messenger/releases/latest/download/app-release.apk
+wget https://github.com/zametkikostik/liberty-reach-messenger/releases/latest/download/app-release.apk
 
 # Установить
 adb install app-release.apk
@@ -66,7 +66,7 @@ adb install app-release.apk
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/YOUR_USERNAME/liberty-reach-messenger.git
+git clone https://github.com/zametkikostik/liberty-reach-messenger.git
 cd liberty-reach-messenger
 
 # Сборка Web версии
@@ -219,9 +219,9 @@ MIT License - см. файл [LICENSE](LICENSE) для деталей.
 
 ## 📈 Статистика
 
-[![Stars](https://img.shields.io/github/stars/YOUR_USERNAME/liberty-reach-messenger?style=social)]()
-[![Forks](https://img.shields.io/github/forks/YOUR_USERNAME/liberty-reach-messenger?style=social)]()
-[![Watchers](https://img.shields.io/github/watchers/YOUR_USERNAME/liberty-reach-messenger?style=social)]()
+[![Stars](https://img.shields.io/github/stars/zametkikostik/liberty-reach-messenger?style=social)]()
+[![Forks](https://img.shields.io/github/forks/zametkikostik/liberty-reach-messenger?style=social)]()
+[![Watchers](https://img.shields.io/github/watchers/zametkikostik/liberty-reach-messenger?style=social)]()
 
 ---
 
