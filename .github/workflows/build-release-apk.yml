@@ -1,0 +1,103 @@
+name: Build and Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: |
+          cd mobile/flutter
+          flutter pub get
+      
+      - name: Build Debug APK
+        run: |
+          cd mobile/flutter
+          flutter build apk --debug
+          cp build/app/outputs/flutter-apk/app-debug.apk ../liberty-reach-debug.apk
+      
+      - name: Build Release APK
+        run: |
+          cd mobile/flutter
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk ../liberty-reach-release.apk
+      
+      - name: Upload APKs to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: liberty-reach-apks
+          path: |
+            mobile/liberty-reach-debug.apk
+            mobile/liberty-reach-release.apk
+      
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Liberty Reach Messenger ${{ github.ref_name }}
+            
+            ### 📥 Downloads
+            
+            **Debug APK** (для тестирования):
+            - [liberty-reach-debug.apk](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/liberty-reach-debug.apk)
+            
+            **Release APK** (для пользователей):
+            - [liberty-reach-release.apk](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/liberty-reach-release.apk)
+            
+            ### 🌐 Web Version
+            https://liberty-reach-messenger.pages.dev
+            
+            ### 📖 Documentation
+            - [Installation Guide](BUILD_INSTRUCTIONS.md)
+            - [All Features](FEATURES.md)
+            - [Free Translation](AUTO_TRANSLATION_FEATURES.md)
+            
+            ### ✨ What's New
+            - Bug fixes and improvements
+            - Performance optimizations
+            - Security updates
+          files: |
+            mobile/liberty-reach-debug.apk
+            mobile/liberty-reach-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build summary
+        run: |
+          echo "✅ Build complete!"
+          echo ""
+          echo "📱 APK files:"
+          echo "   - Debug: mobile/liberty-reach-debug.apk"
+          echo "   - Release: mobile/liberty-reach-release.apk"
+          echo ""
+          echo "🔗 Download from Releases:"
+          echo "   https://github.com/${{ github.repository }}/releases"

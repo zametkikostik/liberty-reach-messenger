@@ -1,81 +1,106 @@
 # 🦅 Liberty Reach Messenger
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-cross--platform-green)]()
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.3.0-orange)]()
-
 **Свобода достигайки каждого** - безопасный мессенджер нового поколения
 
-[🌐 Web Version](https://liberty-reach-messenger.pages.dev) • [📱 Download APK](https://github.com/YOUR_USERNAME/liberty-reach-messenger/releases) • [📖 Documentation](docs/)
+[![Version](https://img.shields.io/github/v/tag/zametkikostik/liberty-reach-messenger?label=version)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)]()
+[![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
+[![Stars](https://img.shields.io/github/stars/zametkikostik/liberty-reach-messenger?style=social)]()
+
+---
+
+## 🚀 Быстрый старт
+
+### 🌐 Web версия (онлайн)
+**→ [Открыть Web версию](https://liberty-reach-messenger.pages.dev)**
+
+### 📱 Скачать APK для Android
+**→ [Скачать последнюю версию](https://github.com/zametkikostik/liberty-reach-messenger/releases/latest)**
+
+### 📖 Документация
+- **[Полная документация](docs/README.md)**
+- **[Инструкция по установке](BUILD_INSTRUCTIONS.md)**
+- **[Все функции](FEATURES.md)**
 
 ---
 
 ## ✨ Особенности
 
 ### 🔐 Безопасность
-- ✅ **Post-Quantum шифрование** (CRYSTALS-Kyber)
-- ✅ **End-to-End шифрование** для всех сообщений
-- ✅ **Double Ratchet** для эволюции ключей
-- ✅ **Steganography** в медиа-файлах
-- ✅ **Mesh сеть** для работы без интернета
+- ✅ Post-Quantum шифрование (CRYSTALS-Kyber)
+- ✅ End-to-End шифрование для всех сообщений
+- ✅ Double Ratchet для эволюции ключей
+- ✅ Steganography в медиа-файлах
+- ✅ Mesh сеть для работы без интернета
 
 ### 💰 Крипто-кошелек
-- ✅ **15+ блокчейнов** (BTC, ETH, BNB, SOL, TON...)
-- ✅ **P2P переводы** между пользователями
-- ✅ **DEX Swap** обмен токенов
-- ✅ **NFT галерея**
-- ✅ **Staking** с APY
+- ✅ 15+ блокчейнов (BTC, ETH, BNB, SOL, TON...)
+- ✅ P2P переводы между пользователями
+- ✅ DEX Swap обмен токенов
+- ✅ NFT галерея
+- ✅ Staking с APY
+
+### 🌍 Автоперевод (БЕСПЛАТНО!)
+- ✅ **100+ языков** включая болгарский 🇧🇬
+- ✅ **Полностью бесплатно** (LibreTranslate, MyMemory)
+- ✅ **Автоматическое определение** языка
+- ✅ **Мгновенный перевод** сообщений
+- ✅ **Перевод голосовых** (STT + TTS)
+- ✅ **Субтитры для видео**
 
 ### 📞 Коммуникация
-- ✅ **VoIP звонки** (WebRTC + ZRTP)
-- ✅ **SIP телефония** (звонки на номера)
-- ✅ **PTT рации** (как Zello)
-- ✅ **Видеоконференции** (до 1000 участников)
-- ✅ **Каналы и боты**
+- ✅ VoIP звонки (WebRTC + ZRTP)
+- ✅ SIP телефония (звонки на номера)
+- ✅ PTT рации (как Zello)
+- ✅ Видеоконференции (до 1000 участников)
+- ✅ Каналы и боты
 
-### 👨‍👩‍👧‍👦 Социальные функции
-- ✅ **Семейные статусы** и отношения
-- ✅ **Семейное древо**
-- ✅ **Истории** (24 часа)
-- ✅ **Стикеры** и реакции
-- ✅ **Premium подписки**
+### 🤖 AI функции
+- ✅ AI Ассистент (умные ответы, саммари)
+- ✅ 10+ AI моделей (GPT-4, Claude, Llama...)
+- ✅ Генерация кода и code review
+- ✅ Анализ изображений (Vision)
+- ✅ OCR (распознавание текста)
+
+### 🌐 IPFS Хранилище
+- ✅ Децентрализованное хранение
+- ✅ Filecoin долгосрочное
+- ✅ Arweave перманентное
+- ✅ Шифрование AES-256
 
 ---
 
-## 🚀 Быстрый старт
+## 📥 Установка
 
-### Web версия (Cloudflare Pages)
-
-```bash
-# Просто открой в браузере
-https://liberty-reach-messenger.pages.dev
-```
-
-### Android приложение
+### Android APK
 
 ```bash
-# Скачать APK
-wget https://github.com/YOUR_USERNAME/liberty-reach-messenger/releases/latest/download/app-release.apk
+# Скачать последнюю версию
+wget https://github.com/zametkikostik/liberty-reach-messenger/releases/download/v0.5.0/app-release.apk
 
 # Установить
 adb install app-release.apk
+
+# Или просто открыть APK на телефоне
 ```
 
-### Локальная разработка
+### Linux Desktop
 
 ```bash
-# Клонировать репозиторий
-git clone https://github.com/YOUR_USERNAME/liberty-reach-messenger.git
+# Склонировать репозиторий
+git clone https://github.com/zametkikostik/liberty-reach-messenger.git
 cd liberty-reach-messenger
 
-# Сборка Web версии
-cd mobile/flutter
-flutter build web
+# Собрать
+./build.sh
 
-# Сборка Android APK
-./build-apk.sh
+# Запустить
+./build/liberty_reach_desktop
 ```
+
+### Web (Cloudflare Pages)
+
+Просто открой: **https://liberty-reach-messenger.pages.dev**
 
 ---
 
@@ -92,6 +117,9 @@ liberty-reach-messenger/
 ├── 💰 wallet/            # Крипто-кошелек
 ├── 📞 webrtc/            # VoIP модуль
 ├── 📡 mesh/              # Mesh сеть
+├── 🌍 translation/       # Автоперевод (бесплатно!)
+├── 🤖 ai/                # AI агрегатор
+├── 🌐 ipfs/              # IPFS хранилище
 ├── 🧪 tests/             # Тесты
 └── 📚 docs/              # Документация
 ```
@@ -117,6 +145,11 @@ liberty-reach-messenger/
 - **X25519/Ed25519** - классическая криптография
 - **AES-256-GCM** - симметричное шифрование
 
+### Translation (БЕСПЛАТНО!)
+- **LibreTranslate** - полностью бесплатный API
+- **MyMemory** - бесплатно до 1000 символов/день
+- **Google Translate** - неофициальный API
+
 ### Blockchain
 - **Bitcoin** - UTXO модель
 - **Ethereum** - смарт-контракты
@@ -135,9 +168,11 @@ liberty-reach-messenger/
 | Крипто-кошелек | ✅ | ✅ | ✅ | ✅ |
 | Каналы | ✅ | ✅ | ✅ | ✅ |
 | Боты | ✅ | ✅ | ✅ | ✅ |
-| Стикеры | ✅ | ✅ | ✅ | ✅ |
+| **Автоперевод** | ✅ | ✅ | ✅ | ✅ |
+| **AI функции** | ❌ | ✅ | ✅ | ✅ |
+| **IPFS хранилище** | 1GB | 10GB | 100GB | ∞ |
 | Premium реакции | ❌ | ✅ | ✅ | ✅ |
-| Перевод сообщений | ❌ | ✅ | ✅ | ✅ |
+| Перевод сообщений | ✅ | ✅ | ✅ | ✅ |
 | Бизнес аккаунт | ❌ | ❌ | ✅ | ✅ |
 | API доступ | ❌ | ❌ | ✅ | ✅ |
 | Поддержка | ❌ | ❌ | Приоритет | 24/7 |
@@ -177,6 +212,10 @@ liberty-reach-messenger/
 ### Разработка
 
 ```bash
+# Клонировать репозиторий
+git clone https://github.com/zametkikostik/liberty-reach-messenger.git
+cd liberty-reach-messenger
+
 # Установить зависимости
 cd mobile/flutter
 flutter pub get
@@ -184,11 +223,11 @@ flutter pub get
 # Запустить тесты
 flutter test
 
-# Запустить линтер
-flutter analyze
-
 # Собрать для debug
 flutter run
+
+# Собрать APK
+./build-apk.sh
 ```
 
 ---
@@ -201,10 +240,10 @@ MIT License - см. файл [LICENSE](LICENSE) для деталей.
 
 ## 📞 Контакты
 
-- **Website**: https://libertyreach.internal
+- **GitHub**: https://github.com/zametkikostik/liberty-reach-messenger
+- **Web**: https://liberty-reach-messenger.pages.dev
 - **Email**: dev@libertyreach.internal
-- **Telegram**: @libertyreach
-- **Twitter**: @libertyreach
+- **Документация**: [docs/](docs/)
 
 ---
 
@@ -212,6 +251,7 @@ MIT License - см. файл [LICENSE](LICENSE) для деталей.
 
 - **Cloudflare** - за инфраструктуру
 - **Flutter Team** - за отличный фреймворк
+- **LibreTranslate** - за бесплатный API перевода
 - **Rust Community** - за криптографические библиотеки
 - **Всем контрибьюторам** - за помощь в развитии
 
@@ -219,9 +259,10 @@ MIT License - см. файл [LICENSE](LICENSE) для деталей.
 
 ## 📈 Статистика
 
-[![Stars](https://img.shields.io/github/stars/YOUR_USERNAME/liberty-reach-messenger?style=social)]()
-[![Forks](https://img.shields.io/github/forks/YOUR_USERNAME/liberty-reach-messenger?style=social)]()
-[![Watchers](https://img.shields.io/github/watchers/YOUR_USERNAME/liberty-reach-messenger?style=social)]()
+[![Stars](https://img.shields.io/github/stars/zametkikostik/liberty-reach-messenger?style=social)]()
+[![Forks](https://img.shields.io/github/forks/zametkikostik/liberty-reach-messenger?style=social)]()
+[![Watchers](https://img.shields.io/github/watchers/zametkikostik/liberty-reach-messenger?style=social)]()
+[![Releases](https://img.shields.io/github/downloads/zametkikostik/liberty-reach-messenger/total)]()
 
 ---
 
@@ -230,5 +271,7 @@ MIT License - см. файл [LICENSE](LICENSE) для деталей.
 **Made with ❤️ by Liberty Reach Team**
 
 [🔝 Back to Top](#-liberty-reach-messenger)
+
+**🦅 Liberty Reach - Свобода без компромиссов!**
 
 </div>
