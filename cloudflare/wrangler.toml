@@ -1,0 +1,52 @@
+name = "liberty-reach-messenger"
+main = "src/worker.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Queue для сообщений
+[[queues.producers]]
+queue = "liberty-reach-messages"
+binding = "MESSAGE_QUEUE"
+
+[[queues.consumers]]
+queue = "liberty-reach-messages"
+max_batch_size = 100
+max_batch_timeout = 30
+
+# Durable Objects
+[durable_objects]
+bindings = [
+  { name = "PREKEY_STORE", class_name = "PreKeyStore" },
+  { name = "SESSION_STATE", class_name = "SessionManager" },
+  { name = "PROFILE_STORE", class_name = "ProfileManager" }
+]
+
+# R2 хранилища
+[[r2_buckets]]
+bucket_name = "liberty-reach-encrypted-storage"
+binding = "ENCRYPTED_STORAGE"
+
+[[r2_buckets]]
+bucket_name = "liberty-reach-profile-backup"
+binding = "PROFILE_BACKUP"
+
+# Переменные окружения
+[vars]
+TURN_SECRET = "${TURN_SECRET}"
+MAX_MESSAGE_SIZE = 4194304
+BULGARIA_EDGE = "sofia.libertyreach.internal"
+LOG_LEVEL = "info"
+
+# Environment для разработки
+[env.dev]
+name = "liberty-reach-dev"
+
+[env.dev.vars]
+LOG_LEVEL = "debug"
+
+# Environment для production
+[env.production]
+name = "liberty-reach-production"
+
+[env.production.vars]
+LOG_LEVEL = "warn"

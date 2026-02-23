@@ -1,0 +1,87 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: |
+          cd mobile/flutter
+          flutter pub get
+      
+      - name: Build Debug APK
+        run: |
+          cd mobile/flutter
+          flutter build apk --debug
+      
+      - name: Build Release APK
+        run: |
+          cd mobile/flutter
+          flutter build apk --release
+      
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-debug.apk
+          path: mobile/flutter/build/app/outputs/flutter-apk/app-debug.apk
+      
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-release.apk
+          path: mobile/flutter/build/app/outputs/flutter-apk/app-release.apk
+      
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Changes
+            - Build ${{ github.sha }}
+            - Flutter 3.16.0
+            
+            ## Installation
+            1. Download app-release.apk
+            2. Install on Android device
+            3. Enjoy!
+          files: |
+            mobile/flutter/build/app/outputs/flutter-apk/app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build summary
+        run: |
+          echo "✅ Build complete!"
+          echo "📱 APK files:"
+          echo "   - Debug: mobile/flutter/build/app/outputs/flutter-apk/app-debug.apk"
+          echo "   - Release: mobile/flutter/build/app/outputs/flutter-apk/app-release.apk"
