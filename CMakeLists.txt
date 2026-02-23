@@ -281,6 +281,40 @@ target_link_libraries(liberty_reach_translation PUBLIC
 )
 
 # ============================================
+# IPFS Storage Module
+# ============================================
+
+add_library(liberty_reach_ipfs STATIC
+    core/src/ipfs_storage.cpp
+)
+
+target_include_directories(liberty_reach_ipfs PUBLIC
+    ${CMAKE_SOURCE_DIR}/core/include
+)
+
+target_link_libraries(liberty_reach_ipfs PUBLIC
+    liberty_reach_crypto_cpp
+    curl
+)
+
+# ============================================
+# AI Aggregator Module
+# ============================================
+
+add_library(liberty_reach_ai STATIC
+    core/src/ai_aggregator.cpp
+)
+
+target_include_directories(liberty_reach_ai PUBLIC
+    ${CMAKE_SOURCE_DIR}/core/include
+)
+
+target_link_libraries(liberty_reach_ai PUBLIC
+    liberty_reach_crypto_cpp
+    curl
+)
+
+# ============================================
 # Additional Features Module
 # ============================================
 
@@ -293,6 +327,8 @@ if(BUILD_DESKTOP)
         liberty_reach_production
         liberty_reach_family
         liberty_reach_translation
+        liberty_reach_ipfs
+        liberty_reach_ai
     )
 endif()
 
