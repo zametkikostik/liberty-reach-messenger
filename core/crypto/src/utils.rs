@@ -41,7 +41,7 @@ pub fn blake3_hash(data: &[u8]) -> [u8; 32] {
     use blake3::Hasher;
     let mut hasher = Hasher::new();
     hasher.update(data);
-    hasher.finalize().to_bytes()
+    hasher.finalize().as_bytes().clone()
 }
 
 /// Compute SHA3-512 hash

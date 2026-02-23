@@ -1,0 +1,6 @@
+[0;34m[ШАГ 0/6] Проверка прав...[0m
+[0;32m[✓] Запуск от пользователя: kostik[0m
+
+[0;34m[ШАГ 1/6] Обновление пакетов...[0m
+sudo: a terminal is required to read the password; either use the -S option to read from standard input or configure an askpass helper
+sudo: требуется указать пароль

@@ -1,0 +1,43 @@
+cmake_minimum_required(VERSION 3.20)
+project(LibertyReachSimple VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find dependencies
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(OPENSSL REQUIRED openssl)
+pkg_check_modules(SODIUM REQUIRED libsodium)
+
+# Simple crypto without Rust
+add_library(liberty_reach_crypto_simple STATIC
+    core/src/liberty_reach_crypto.cpp
+)
+
+target_include_directories(liberty_reach_crypto_simple PUBLIC
+    ${CMAKE_SOURCE_DIR}/core/include
+    ${OPENSSL_INCLUDE_DIRS}
+    ${SODIUM_INCLUDE_DIRS}
+)
+
+target_link_libraries(liberty_reach_crypto_simple PUBLIC
+    ${OPENSSL_LIBRARIES}
+    ${SODIUM_LIBRARIES}
+)
+
+# Desktop client
+add_executable(liberty_reach_simple
+    desktop/src/main.cpp
+    desktop/src/main_window.cpp
+)
+
+target_include_directories(liberty_reach_simple PUBLIC
+    ${CMAKE_SOURCE_DIR}/core/include
+    ${OPENSSL_INCLUDE_DIRS}
+)
+
+target_link_libraries(liberty_reach_simple
+    liberty_reach_crypto_simple
+    ${OPENSSL_LIBRARIES}
+    gtk-3
+)
