@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🦅 Liberty Reach - Реален Месинджър</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --primary: #3390ec;
+      --primary-dark: #2878c0;
+      --bg: #ffffff;
+      --bg-secondary: #f4f4f5;
+      --text: #000000;
+      --text-secondary: #707579;
+      --border: #dfe1e5;
+      --message-in: #ffffff;
+      --message-out: #eeffde;
+      --online: #44b756;
+      --offline: #999;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Login Screen */
+    .login-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .login-box {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    .login-icon {
+      font-size: 80px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .login-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .login-subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+    }
+    
+    .login-input {
+      width: 100%;
+      padding: 14px 18px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 16px;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    
+    .login-input:focus {
+      border-color: var(--primary);
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .login-btn:hover {
+      background: var(--primary-dark);
+    }
+    
+    .login-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .login-error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    /* App */
+    .app {
+      display: none;
+      height: 100vh;
+      max-width: 1600px;
+      margin: 0 auto;
+      background: var(--bg);
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+    
+    .app.active { display: flex; }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 420px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+    
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--primary);
+      color: white;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    
+    .chat-item {
+      display: flex;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .chat-item:hover { background: var(--bg-secondary); }
+    .chat-item.active { background: #3390ec20; }
+    
+    .avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    
+    .online-indicator {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 14px;
+      height: 14px;
+      background: var(--online);
+      border: 2px solid white;
+      border-radius: 50%;
+    }
+    
+    .chat-info {
+      flex: 1;
+      margin-left: 12px;
+      min-width: 0;
+    }
+    
+    .chat-name {
+      font-weight: 500;
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--online);
+    }
+    
+    .status-dot.offline { background: var(--offline); }
+    
+    .chat-last-message {
+      color: var(--text-secondary);
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .chat-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      margin-left: 8px;
+    }
+    
+    .chat-time {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .badge {
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    
+    /* Main Chat */
+    .main-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #8e9bb5;
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%238e9bb5" width="100" height="100"/><circle fill="%2395a2bc" cx="25" cy="25" r="2"/><circle fill="%2395a2bc" cx="75" cy="75" r="2"/></svg>');
+    }
+    
+    .chat-header {
+      padding: 16px 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .chat-header-info {
+      flex: 1;
+    }
+    
+    .chat-header-name {
+      font-weight: 600;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .chat-header-status {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .message {
+      max-width: 65%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      position: relative;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message-in {
+      background: var(--message-in);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    
+    .message-out {
+      background: var(--message-out);
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .message-text {
+      font-size: 15px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    
+    .message-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    
+    .message-checks {
+      color: var(--primary);
+    }
+    
+    .message-input-area {
+      padding: 16px 20px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .message-input {
+      flex: 1;
+      border: none;
+      font-size: 15px;
+      padding: 12px 16px;
+      outline: none;
+      resize: none;
+      max-height: 200px;
+      font-family: inherit;
+      background: var(--bg-secondary);
+      border-radius: 20px;
+    }
+    
+    .send-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    
+    .send-btn:hover { background: var(--primary-dark); }
+    
+    .logout-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .logout-btn:hover { background: rgba(255,255,255,0.3); }
+    
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: white;
+      text-align: center;
+    }
+    
+    .empty-state-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+    
+    .empty-state-title {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    
+    .empty-state-text {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-box">
+      <div class="login-icon">🦅</div>
+      <div class="login-title">Liberty Reach Messenger</div>
+      <div class="login-subtitle">Свобода без компромиссов</div>
+      
+      <div class="login-error" id="loginError"></div>
+      
+      <input type="text" class="login-input" id="usernameInput" placeholder="Име на потребител (мин. 3 знака)" maxlength="30">
+      <button class="login-btn" id="loginBtn" onclick="register()">Вход</button>
+      
+      <div style="text-align: center; margin-top: 20px; font-size: 13px; color: #666;">
+        📡 Сървър: <strong id="serverStatus">Проверка...</strong>
+      </div>
+    </div>
+  </div>
+  
+  <!-- App -->
+  <div class="app" id="app">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">🦅 Liberty Reach</div>
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">👤</div>
+          <button class="logout-btn" onclick="logout()">Изход</button>
+        </div>
+      </div>
+      <div class="chat-list" id="chatList">
+        <!-- Чатовете ще се заредят тук -->
+      </div>
+    </div>
+    
+    <!-- Main Chat -->
+    <div class="main-chat">
+      <div class="chat-header">
+        <div class="avatar" id="headerAvatar" style="width: 42px; height: 42px; font-size: 16px;">👤</div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="headerName">Изберете чат</div>
+          <div class="chat-header-status" id="headerStatus"></div>
+        </div>
+      </div>
+      
+      <div class="messages-container" id="messagesContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon">💬</div>
+          <div class="empty-state-title">Изберете чат</div>
+          <div class="empty-state-text">За да започнете разговор</div>
+        </div>
+      </div>
+      
+      <div class="message-input-area">
+        <input type="text" class="message-input" placeholder="Напишете съобщение..." id="messageInput" onkeypress="handleKeyPress(event)">
+        <button class="send-btn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API URL - Local Backend
+    const API_URL = 'http://localhost:8787';
+    
+    // State
+    let currentUser = null;
+    let currentChat = null;
+    let users = [];
+    let messages = {};
+    let pollingInterval = null;
+    
+    // Initialize
+    async function init() {
+      await checkServer();
+      
+      // Check for saved user
+      const savedUser = localStorage.getItem('lr_user');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        showApp();
+      }
+    }
+    
+    // Check server status
+    async function checkServer() {
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        document.getElementById('serverStatus').innerHTML = 
+          `<span style="color: #44b756;">● Онлайн</span> v${data.version}`;
+      } catch (error) {
+        document.getElementById('serverStatus').innerHTML = 
+          `<span style="color: #ff6b6b;">● Офлайн</span>`;
+      }
+    }
+    
+    // Register/Login
+    async function register() {
+      const username = document.getElementById('usernameInput').value.trim();
+      const errorEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
+      
+      if (username.length < 3) {
+        errorEl.textContent = 'Името трябва да е поне 3 знака!';
+        errorEl.style.display = 'block';
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Зареждане...';
+      
+      try {
+        // Try to register
+        const response = await fetch(`${API_URL}/api/v1/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, public_key: '' })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Success - new user
+          currentUser = data.user;
+          localStorage.setItem('lr_user', JSON.stringify(currentUser));
+          showApp();
+        } else if (response.status === 409) {
+          // Username taken - try to login
+          const usersResponse = await fetch(`${API_URL}/api/v1/users`);
+          const usersData = await usersResponse.json();
+          const existingUser = usersData.users.find(u => u.username === username);
+          
+          if (existingUser) {
+            currentUser = existingUser;
+            localStorage.setItem('lr_user', JSON.stringify(currentUser));
+            showApp();
+          } else {
+            throw new Error('Грешка при влизане');
+          }
+        } else {
+          throw new Error(data.message || 'Грешка при регистрация');
+        }
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Вход';
+      }
+    }
+    
+    // Show app
+    function showApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').classList.add('active');
+      document.getElementById('userAvatar').textContent = 
+        currentUser.username.charAt(0).toUpperCase();
+      
+      // Set user online
+      fetch(`${API_URL}/api/v1/users/${currentUser.id}/online`, { method: 'POST' });
+      
+      // Load users and chats
+      loadUsers();
+      startPolling();
+    }
+    
+    // Load users
+    async function loadUsers() {
+      try {
+        const response = await fetch(`${API_URL}/api/v1/users`);
+        const data = await response.json();
+        
+        users = data.users.filter(u => u.id !== currentUser.id);
+        renderChatList();
+      } catch (error) {
+        console.error('Failed to load users:', error);
+      }
+    }
+    
+    // Render chat list
+    function renderChatList() {
+      const chatList = document.getElementById('chatList');
+      chatList.innerHTML = '';
+      
+      users.forEach(user => {
+        const el = document.createElement('div');
+        el.className = 'chat-item';
+        el.onclick = () => openChat(user);
+        el.innerHTML = `
+          <div class="avatar">
+            ${user.username.charAt(0).toUpperCase()}
+            <div class="online-indicator" style="background: ${user.status === 'online' ? '#44b756' : '#999'}"></div>
+          </div>
+          <div class="chat-info">
+            <div class="chat-name">
+              ${user.username}
+              <div class="status-dot ${user.status === 'offline' ? 'offline' : ''}"></div>
+            </div>
+            <div class="chat-last-message">${messages[user.id]?.slice(-1)[0]?.content || 'Няма съобщения'}</div>
+          </div>
+          <div class="chat-meta">
+            <div class="chat-time">${formatTime(Date.now())}</div>
+          </div>
+        `;
+        chatList.appendChild(el);
+      });
+    }
+    
+    // Open chat
+    async function openChat(user) {
+      currentChat = user;
+      
+      document.getElementById('headerName').innerHTML = `
+        ${user.username}
+        <div class="status-dot ${user.status === 'offline' ? 'offline' : ''}"></div>
+      `;
+      document.getElementById('headerStatus').textContent = 
+        user.status === 'online' ? 'в мрежата' : 'офлайн';
+      document.getElementById('headerAvatar').textContent = user.username.charAt(0).toUpperCase();
+      
+      // Load messages
+      await loadMessages(user.id);
+      renderChatList();
+    }
+    
+    // Load messages
+    async function loadMessages(userId) {
+      try {
+        const response = await fetch(`${API_URL}/api/v1/messages/${currentUser.id}`);
+        const data = await response.json();
+        
+        // Filter messages for this chat
+        const chatMessages = data.messages.filter(m => 
+          (m.from_user === currentUser.id && m.to_user === userId) ||
+          (m.from_user === userId && m.to_user === currentUser.id)
+        );
+        
+        messages[userId] = chatMessages;
+        renderMessages(chatMessages);
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+      }
+    }
+    
+    // Render messages
+    function renderMessages(chatMessages) {
+      const container = document.getElementById('messagesContainer');
+      container.innerHTML = '';
+      
+      if (chatMessages.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-title">Няма съобщения</div>
+            <div class="empty-state-text">Започнете разговор сега!</div>
+          </div>
+        `;
+        return;
+      }
+      
+      chatMessages.forEach(msg => {
+        const el = document.createElement('div');
+        el.className = 'message message-' + (msg.from_user === currentUser.id ? 'out' : 'in');
+        el.innerHTML = `
+          <div class="message-text">${escapeHtml(msg.content)}</div>
+          <div class="message-meta">
+            ${formatTime(msg.created_at)}
+            ${msg.from_user === currentUser.id ? '<span class="message-checks">✓✓</span>' : ''}
+          </div>
+        `;
+        container.appendChild(el);
+      });
+      
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    // Send message
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !currentChat) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/api/v1/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_user: currentUser.id,
+            to_user: currentChat.id,
+            content: text,
+            encrypted: false
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          input.value = '';
+          // Reload messages
+          await loadMessages(currentChat.id);
+          await loadUsers();
+        }
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
+    }
+    
+    // Handle key press
+    function handleKeyPress(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    }
+    
+    // Logout
+    function logout() {
+      if (currentUser) {
+        fetch(`${API_URL}/api/v1/users/${currentUser.id}/offline`, { method: 'POST' });
+      }
+      localStorage.removeItem('lr_user');
+      location.reload();
+    }
+    
+    // Polling for new messages
+    function startPolling() {
+      pollingInterval = setInterval(async () => {
+        if (currentChat) {
+          await loadMessages(currentChat.id);
+        }
+        await loadUsers(); // Update online status
+      }, 3000); // Poll every 3 seconds
+    }
+    
+    // Utilities
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+      
+      if (diff < 60000) return 'сега';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'м';
+      if (diff < 86400000) return date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+      return date.getDate().toString().padStart(2, '0') + '.' + (date.getMonth() + 1).toString().padStart(2, '0');
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    // Initialize app
+    init();
+  </script>
+</body>
+</html>

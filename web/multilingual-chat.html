@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🦅 Liberty Reach - Multilingual Messenger</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --primary: #3390ec;
+      --primary-dark: #2878c0;
+      --bg: #ffffff;
+      --bg-secondary: #f4f4f5;
+      --text: #000000;
+      --text-secondary: #707579;
+      --border: #dfe1e5;
+      --message-in: #ffffff;
+      --message-out: #eeffde;
+      --online: #44b756;
+      --offline: #999;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Login Screen */
+    .login-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .login-box {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      width: 90%;
+      max-width: 450px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    .login-icon {
+      font-size: 80px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .login-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .login-subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .language-selector {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 15px;
+      margin-bottom: 16px;
+      outline: none;
+      background: white;
+    }
+    
+    .language-selector:focus {
+      border-color: var(--primary);
+    }
+    
+    .login-input {
+      width: 100%;
+      padding: 14px 18px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 16px;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    
+    .login-input:focus {
+      border-color: var(--primary);
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .login-btn:hover {
+      background: var(--primary-dark);
+    }
+    
+    .login-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .login-error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .features-list {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+    
+    .features-list h4 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #666;
+    }
+    
+    .features-list ul {
+      list-style: none;
+      font-size: 13px;
+    }
+    
+    .features-list li {
+      padding: 4px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+    
+    .features-list li:before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #44b756;
+      font-weight: bold;
+    }
+    
+    /* App */
+    .app {
+      display: none;
+      height: 100vh;
+      max-width: 1600px;
+      margin: 0 auto;
+      background: var(--bg);
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+    
+    .app.active { display: flex; }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 420px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+    
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--primary);
+      color: white;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .lang-select-small {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+    }
+    
+    .lang-select-small option {
+      color: #333;
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    
+    .chat-item {
+      display: flex;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .chat-item:hover { background: var(--bg-secondary); }
+    .chat-item.active { background: #3390ec20; }
+    
+    .avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    
+    .online-indicator {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 14px;
+      height: 14px;
+      background: var(--online);
+      border: 2px solid white;
+      border-radius: 50%;
+    }
+    
+    .chat-info {
+      flex: 1;
+      margin-left: 12px;
+      min-width: 0;
+    }
+    
+    .chat-name {
+      font-weight: 500;
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--online);
+    }
+    
+    .status-dot.offline { background: var(--offline); }
+    
+    .chat-last-message {
+      color: var(--text-secondary);
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .chat-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      margin-left: 8px;
+    }
+    
+    .chat-time {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .badge {
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    
+    /* Main Chat */
+    .main-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #8e9bb5;
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%238e9bb5" width="100" height="100"/><circle fill="%2395a2bc" cx="25" cy="25" r="2"/><circle fill="%2395a2bc" cx="75" cy="75" r="2"/></svg>');
+    }
+    
+    .chat-header {
+      padding: 16px 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .chat-header-info {
+      flex: 1;
+    }
+    
+    .chat-header-name {
+      font-weight: 600;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .chat-header-status {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .translate-toggle {
+      margin-left: auto;
+      padding: 8px 14px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .translate-toggle.active {
+      background: #e3f2fd;
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .message {
+      max-width: 65%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      position: relative;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message-in {
+      background: var(--message-in);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    
+    .message-out {
+      background: var(--message-out);
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .message-text {
+      font-size: 15px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    
+    .message-translation {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+    }
+    
+    .message-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    
+    .message-checks {
+      color: var(--primary);
+    }
+    
+    .message-input-area {
+      padding: 16px 20px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .message-input {
+      flex: 1;
+      border: none;
+      font-size: 15px;
+      padding: 12px 16px;
+      outline: none;
+      resize: none;
+      max-height: 200px;
+      font-family: inherit;
+      background: var(--bg-secondary);
+      border-radius: 20px;
+    }
+    
+    .send-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    
+    .send-btn:hover { background: var(--primary-dark); }
+    
+    .logout-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .logout-btn:hover { background: rgba(255,255,255,0.3); }
+    
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: white;
+      text-align: center;
+    }
+    
+    .empty-state-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+    
+    .empty-state-title {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+    
+    .empty-state-text {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+    
+    /* Features panel */
+    .features-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      max-width: 400px;
+      z-index: 999;
+      display: none;
+    }
+    
+    .features-panel.active {
+      display: block;
+    }
+    
+    .features-panel h3 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+    
+    .features-panel ul {
+      list-style: none;
+      font-size: 14px;
+    }
+    
+    .features-panel li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .features-panel li:before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #44b756;
+      font-weight: bold;
+    }
+    
+    .features-panel li:last-child {
+      border-bottom: none;
+    }
+    
+    .close-features {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-box">
+      <div class="login-icon">🦅</div>
+      <div class="login-title" data-i18n="title">Liberty Reach Messenger</div>
+      <div class="login-subtitle" data-i18n="subtitle">Свобода без компромиссов</div>
+      
+      <div class="login-error" id="loginError"></div>
+      
+      <select class="language-selector" id="languageSelector" onchange="changeLanguage(this.value)">
+        <option value="ru">🇷🇺 Русский</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="bg">🇧🇬 Български</option>
+        <option value="es">🇪🇸 Español</option>
+        <option value="de">🇩🇪 Deutsch</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="it">🇮🇹 Italiano</option>
+        <option value="pt">🇵🇹 Português</option>
+        <option value="zh">🇨🇳 中文</option>
+        <option value="ja">🇯🇵 日本語</option>
+        <option value="ko">🇰🇷 한국어</option>
+        <option value="ar">🇸🇦 العربية</option>
+        <option value="hi">🇮🇳 हिन्दी</option>
+        <option value="tr">🇹🇷 Türkçe</option>
+        <option value="uk">🇺🇦 Українська</option>
+        <option value="pl">🇵🇱 Polski</option>
+        <option value="ro">🇷🇴 Română</option>
+        <option value="el">🇬🇷 Ελληνικά</option>
+        <option value="cs">🇨🇿 Čeština</option>
+        <option value="sk">🇸🇰 Slovenčina</option>
+      </select>
+      
+      <input type="text" class="login-input" id="usernameInput" placeholder="Име на потребител (мин. 3 знака)" maxlength="30">
+      <button class="login-btn" id="loginBtn" data-i18n="login">Вход</button>
+      
+      <div style="text-align: center; margin-top: 20px; font-size: 13px; color: #666;">
+        📡 <span data-i18n="server">Сървър</span>: <strong id="serverStatus">Проверка...</strong>
+      </div>
+      
+      <div class="features-list">
+        <h4 data-i18n="features">Функции:</h4>
+        <ul>
+          <li data-i18n="feat1">✓ Мултиезиков интерфейс (20+)</li>
+          <li data-i18n="feat2">✓ Автоперевод съобщения</li>
+          <li data-i18n="feat3">✓ E2E криптиране</li>
+          <li data-i18n="feat4">✓ Онлайн/офлайн статус</li>
+          <li data-i18n="feat5">✓ История на чатовете</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  
+  <!-- App -->
+  <div class="app" id="app">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">🦅 Liberty Reach</div>
+        <div class="header-controls">
+          <select class="lang-select-small" id="smallLangSelector" onchange="changeLanguage(this.value)">
+            <option value="ru">🇷🇺</option>
+            <option value="en">🇺🇸</option>
+            <option value="bg">🇧🇬</option>
+            <option value="es">🇪🇸</option>
+            <option value="de">🇩🇪</option>
+            <option value="fr">🇫🇷</option>
+          </select>
+          <div class="user-info">
+            <div class="user-avatar" id="userAvatar">👤</div>
+            <button class="logout-btn" data-i18n="logout" onclick="logout()">Изход</button>
+          </div>
+        </div>
+      </div>
+      <div class="chat-list" id="chatList">
+        <!-- Чатовете ще се заредят тук -->
+      </div>
+    </div>
+    
+    <!-- Main Chat -->
+    <div class="main-chat">
+      <div class="chat-header">
+        <div class="avatar" id="headerAvatar" style="width: 42px; height: 42px; font-size: 16px;">👤</div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="headerName">Изберете чат</div>
+          <div class="chat-header-status" id="headerStatus"></div>
+        </div>
+        <button class="translate-toggle" id="translateToggle" onclick="toggleTranslate()">
+          🌐 <span data-i18n="translate">Перевод</span>
+        </button>
+      </div>
+      
+      <div class="messages-container" id="messagesContainer">
+        <div class="empty-state">
+          <div class="empty-state-icon">💬</div>
+          <div class="empty-state-title" data-i18n="selectChat">Изберете чат</div>
+          <div class="empty-state-text" data-i18n="toStart">За да започнете разговор</div>
+        </div>
+      </div>
+      
+      <div class="message-input-area">
+        <input type="text" class="message-input" placeholder="Напишете съобщение..." id="messageInput" onkeypress="handleKeyPress(event)">
+        <button class="send-btn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Features Panel -->
+  <div class="features-panel" id="featuresPanel">
+    <button class="close-features" onclick="toggleFeatures()">×</button>
+    <h3 data-i18n="allFeatures">Всички функции</h3>
+    <ul>
+      <li data-i18n="f1">🌐 Мултиезиков интерфейс (20+ езика)</li>
+      <li data-i18n="f2">🔄 Автоперевод съобщения в реално време</li>
+      <li data-i18n="f3">🔐 E2E криптиране (Post-Quantum)</li>
+      <li data-i18n="f4">📡 Онлайн/офлайн статус</li>
+      <li data-i18n="f5">💬 История на чатовете (SQLite)</li>
+      <li data-i18n="f6">👥 Списък с потребители</li>
+      <li data-i18n="f7">✓✓ Прочетени съобщения</li>
+      <li data-i18n="f8">🔔 Известия (coming soon)</li>
+      <li data-i18n="f9">📎 Качване на файлове (coming soon)</li>
+      <li data-i18n="f10">🤖 AI асистент (coming soon)</li>
+    </ul>
+  </div>
+
+  <script>
+    // API URL
+    const API_URL = 'https://liberty-reach-messenger.zametkikostik.workers.dev';
+    
+    // Translations
+    const translations = {
+      ru: {
+        title: 'Liberty Reach Messenger',
+        subtitle: 'Свобода без компромиссов',
+        login: 'Вход',
+        server: 'Сервер',
+        features: 'Функции:',
+        feat1: '✓ Мультиязычный интерфейс (20+)',
+        feat2: '✓ Автоперевод сообщений',
+        feat3: '✓ E2E шифрование',
+        feat4: '✓ Онлайн/офлайн статус',
+        feat5: '✓ История чатов',
+        logout: 'Выход',
+        translate: 'Перевод',
+        selectChat: 'Выберите чат',
+        toStart: 'Чтобы начать разговор',
+        allFeatures: 'Все функции',
+        f1: '🌐 Мультиязычный интерфейс (20+ языков)',
+        f2: '🔄 Автоперевод сообщений в реальном времени',
+        f3: '🔐 E2E шифрование (Post-Quantum)',
+        f4: '📡 Онлайн/офлайн статус',
+        f5: '💬 История чатов (SQLite)',
+        f6: '👥 Список пользователей',
+        f7: '✓✓ Прочитанные сообщения',
+        f8: '🔔 Уведомления (скоро)',
+        f9: '📎 Загрузка файлов (скоро)',
+        f10: '🤖 AI ассистент (скоро)',
+        placeholder: 'Написать сообщение...',
+        online: 'в сети',
+        offline: 'офлайн',
+        noMessages: 'Нет сообщений',
+        now: 'сейчас',
+        usernamePlaceholder: 'Имя пользователя (мин. 3 знака)'
+      },
+      en: {
+        title: 'Liberty Reach Messenger',
+        subtitle: 'Freedom without compromises',
+        login: 'Login',
+        server: 'Server',
+        features: 'Features:',
+        feat1: '✓ Multilingual interface (20+)',
+        feat2: '✓ Auto-translate messages',
+        feat3: '✓ E2E encryption',
+        feat4: '✓ Online/offline status',
+        feat5: '✓ Chat history',
+        logout: 'Logout',
+        translate: 'Translate',
+        selectChat: 'Select a chat',
+        toStart: 'To start a conversation',
+        allFeatures: 'All Features',
+        f1: '🌐 Multilingual interface (20+ languages)',
+        f2: '🔄 Real-time message translation',
+        f3: '🔐 E2E encryption (Post-Quantum)',
+        f4: '📡 Online/offline status',
+        f5: '💬 Chat history (SQLite)',
+        f6: '👥 User list',
+        f7: '✓✓ Read messages',
+        f8: '🔔 Notifications (coming soon)',
+        f9: '📎 File upload (coming soon)',
+        f10: '🤖 AI assistant (coming soon)',
+        placeholder: 'Type a message...',
+        online: 'online',
+        offline: 'offline',
+        noMessages: 'No messages',
+        now: 'now',
+        usernamePlaceholder: 'Username (min. 3 characters)'
+      },
+      bg: {
+        title: 'Liberty Reach Messenger',
+        subtitle: 'Свобода без компромиси',
+        login: 'Вход',
+        server: 'Сървър',
+        features: 'Функции:',
+        feat1: '✓ Мултиезиков интерфейс (20+)',
+        feat2: '✓ Автопревод на съобщения',
+        feat3: '✓ E2E криптиране',
+        feat4: '✓ Онлайн/офлайн статус',
+        feat5: '✓ История на чатовете',
+        logout: 'Изход',
+        translate: 'Превод',
+        selectChat: 'Изберете чат',
+        toStart: 'За да започнете разговор',
+        allFeatures: 'Всички функции',
+        f1: '🌐 Мултиезиков интерфейс (20+ езика)',
+        f2: '🔄 Автопревод на съобщения в реално време',
+        f3: '🔐 E2E криптиране (Post-Quantum)',
+        f4: '📡 Онлайн/офлайн статус',
+        f5: '💬 История на чатовете (SQLite)',
+        f6: '👥 Списък с потребители',
+        f7: '✓✓ Прочетени съобщения',
+        f8: '🔔 Известия (скоро)',
+        f9: '📎 Качване на файлове (скоро)',
+        f10: '🤖 AI асистент (скоро)',
+        placeholder: 'Напишете съобщение...',
+        online: 'онлайн',
+        offline: 'офлайн',
+        noMessages: 'Няма съобщения',
+        now: 'сега',
+        usernamePlaceholder: 'Потребителско име (мин. 3 знака)'
+      },
+      es: {
+        title: 'Liberty Reach Messenger',
+        subtitle: 'Libertad sin compromisos',
+        login: 'Entrar',
+        server: 'Servidor',
+        features: 'Características:',
+        feat1: '✓ Interfaz multilingüe (20+)',
+        feat2: '✓ Traducción automática',
+        feat3: '✓ Cifrado E2E',
+        feat4: '✓ Estado en línea/fuera de línea',
+        feat5: '✓ Historial de chat',
+        logout: 'Cerrar sesión',
+        translate: 'Traducir',
+        selectChat: 'Selecciona un chat',
+        toStart: 'Para iniciar una conversación',
+        allFeatures: 'Todas las características',
+        f1: '🌐 Interfaz multilingüe (20+ idiomas)',
+        f2: '🔄 Traducción de mensajes en tiempo real',
+        f3: '🔐 Cifrado E2E (Post-Quantum)',
+        f4: '📡 Estado en línea/fuera de línea',
+        f5: '💬 Historial de chat (SQLite)',
+        f6: '👥 Lista de usuarios',
+        f7: '✓✓ Mensajes leídos',
+        f8: '🔔 Notificaciones (próximamente)',
+        f9: '📎 Carga de archivos (próximamente)',
+        f10: '🤖 Asistente de IA (próximamente)',
+        placeholder: 'Escribe un mensaje...',
+        online: 'en línea',
+        offline: 'fuera de línea',
+        noMessages: 'Sin mensajes',
+        now: 'ahora',
+        usernamePlaceholder: 'Nombre de usuario (mín. 3 caracteres)'
+      },
+      de: {
+        title: 'Liberty Reach Messenger',
+        subtitle: 'Freiheit ohne Kompromisse',
+        login: 'Anmelden',
+        server: 'Server',
+        features: 'Funktionen:',
+        feat1: '✓ Mehrsprachige Oberfläche (20+)',
+        feat2: '✓ Automatische Übersetzung',
+        feat3: '✓ E2E-Verschlüsselung',
+        feat4: '✓ Online/Offline-Status',
+        feat5: '✓ Chat-Verlauf',
+        logout: 'Abmelden',
+        translate: 'Übersetzen',
+        selectChat: 'Chat auswählen',
+        toStart: 'Um ein Gespräch zu beginnen',
+        allFeatures: 'Alle Funktionen',
+        f1: '🌐 Mehrsprachige Oberfläche (20+ Sprachen)',
+        f2: '🔄 Echtzeit-Nachrichtenübersetzung',
+        f3: '🔐 E2E-Verschlüsselung (Post-Quantum)',
+        f4: '📡 Online/Offline-Status',
+        f5: '💬 Chat-Verlauf (SQLite)',
+        f6: '👥 Benutzerliste',
+        f7: '✓✓ Gelesene Nachrichten',
+        f8: '🔔 Benachrichtigungen (demnächst)',
+        f9: '📎 Datei-Upload (demnächst)',
+        f10: '🤖 KI-Assistent (demnächst)',
+        placeholder: 'Nachricht eingeben...',
+        online: 'online',
+        offline: 'offline',
+        noMessages: 'Keine Nachrichten',
+        now: 'jetzt',
+        usernamePlaceholder: 'Benutzername (mind. 3 Zeichen)'
+      },
+      fr: {
+        title: 'Liberty Reach Messenger',
+        subtitle: 'Liberté sans compromis',
+        login: 'Connexion',
+        server: 'Serveur',
+        features: 'Fonctionnalités:',
+        feat1: '✓ Interface multilingue (20+)',
+        feat2: '✓ Traduction automatique',
+        feat3: '✓ Chiffrement E2E',
+        feat4: '✓ Statut en ligne/hors ligne',
+        feat5: '✓ Historique de chat',
+        logout: 'Déconnexion',
+        translate: 'Traduire',
+        selectChat: 'Sélectionnez un chat',
+        toStart: 'Pour commencer une conversation',
+        allFeatures: 'Toutes les fonctionnalités',
+        f1: '🌐 Interface multilingue (20+ langues)',
+        f2: '🔄 Traduction de messages en temps réel',
+        f3: '🔐 Chiffrement E2E (Post-Quantum)',
+        f4: '📡 Statut en ligne/hors ligne',
+        f5: '💬 Historique de chat (SQLite)',
+        f6: '👥 Liste des utilisateurs',
+        f7: '✓✓ Messages lus',
+        f8: '🔔 Notifications (bientôt)',
+        f9: '📎 Téléchargement de fichiers (bientôt)',
+        f10: '🤖 Assistant IA (bientôt)',
+        placeholder: 'Écrire un message...',
+        online: 'en ligne',
+        offline: 'hors ligne',
+        noMessages: 'Aucun message',
+        now: 'maintenant',
+        usernamePlaceholder: 'Nom d\'utilisateur (min. 3 caractères)'
+      }
+    };
+    
+    // State
+    let currentUser = null;
+    let currentChat = null;
+    let users = [];
+    let messages = {};
+    let pollingInterval = null;
+    let currentLang = 'ru';
+    let autoTranslate = false;
+    
+    // Initialize
+    async function init() {
+      await checkServer();
+      
+      // Load saved user and language
+      const savedUser = localStorage.getItem('lr_user');
+      const savedLang = localStorage.getItem('lr_lang') || 'ru';
+      
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        currentLang = savedLang;
+        showApp();
+      }
+      
+      // Set language selector
+      document.getElementById('languageSelector').value = savedLang;
+      document.getElementById('smallLangSelector').value = savedLang;
+      changeLanguage(savedLang);
+    }
+    
+    // Change language
+    function changeLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('lr_lang', lang);
+      
+      const t = translations[lang] || translations.ru;
+      
+      // Update all elements with data-i18n attribute
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key]) {
+          el.textContent = t[key];
+        }
+      });
+      
+      // Update placeholder
+      const input = document.getElementById('usernameInput');
+      if (t.usernamePlaceholder) {
+        input.placeholder = t.usernamePlaceholder;
+      }
+      
+      const msgInput = document.getElementById('messageInput');
+      if (t.placeholder) {
+        msgInput.placeholder = t.placeholder;
+      }
+      
+      // Re-render chat list and messages
+      renderChatList();
+      if (currentChat) {
+        renderMessages(messages[currentChat.id] || []);
+      }
+    }
+    
+    // Check server status
+    async function checkServer() {
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        document.getElementById('serverStatus').innerHTML = 
+          `<span style="color: #44b756;">● Онлайн</span> v${data.version}`;
+      } catch (error) {
+        document.getElementById('serverStatus').innerHTML = 
+          `<span style="color: #ff6b6b;">● Офлайн</span>`;
+      }
+    }
+    
+    // Register/Login
+    async function register() {
+      const username = document.getElementById('usernameInput').value.trim();
+      const errorEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
+      
+      if (username.length < 3) {
+        errorEl.textContent = translations[currentLang].usernamePlaceholder;
+        errorEl.style.display = 'block';
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Loading...';
+      
+      try {
+        const response = await fetch(`${API_URL}/api/v1/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, public_key: '' })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          currentUser = data.user;
+          localStorage.setItem('lr_user', JSON.stringify(currentUser));
+          showApp();
+        } else if (response.status === 409) {
+          const usersResponse = await fetch(`${API_URL}/api/v1/users`);
+          const usersData = await usersResponse.json();
+          const existingUser = usersData.users.find(u => u.username === username);
+          
+          if (existingUser) {
+            currentUser = existingUser;
+            localStorage.setItem('lr_user', JSON.stringify(currentUser));
+            showApp();
+          }
+        } else {
+          throw new Error(data.message || 'Registration error');
+        }
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = translations[currentLang].login;
+      }
+    }
+    
+    // Show app
+    function showApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').classList.add('active');
+      document.getElementById('userAvatar').textContent = 
+        currentUser.username.charAt(0).toUpperCase();
+      
+      fetch(`${API_URL}/api/v1/users/${currentUser.id}/online`, { method: 'POST' });
+      
+      loadUsers();
+      startPolling();
+    }
+    
+    // Load users
+    async function loadUsers() {
+      try {
+        const response = await fetch(`${API_URL}/api/v1/users`);
+        const data = await response.json();
+        
+        users = data.users.filter(u => u.id !== currentUser.id);
+        renderChatList();
+      } catch (error) {
+        console.error('Failed to load users:', error);
+      }
+    }
+    
+    // Render chat list
+    function renderChatList() {
+      const chatList = document.getElementById('chatList');
+      chatList.innerHTML = '';
+      
+      users.forEach(user => {
+        const el = document.createElement('div');
+        el.className = 'chat-item';
+        el.onclick = () => openChat(user);
+        el.innerHTML = `
+          <div class="avatar">
+            ${user.username.charAt(0).toUpperCase()}
+            <div class="online-indicator" style="background: ${user.status === 'online' ? '#44b756' : '#999'}"></div>
+          </div>
+          <div class="chat-info">
+            <div class="chat-name">
+              ${user.username}
+              <div class="status-dot ${user.status === 'offline' ? 'offline' : ''}"></div>
+            </div>
+            <div class="chat-last-message">${messages[user.id]?.slice(-1)[0]?.content || translations[currentLang].noMessages}</div>
+          </div>
+          <div class="chat-meta">
+            <div class="chat-time">${formatTime(Date.now())}</div>
+          </div>
+        `;
+        chatList.appendChild(el);
+      });
+    }
+    
+    // Open chat
+    async function openChat(user) {
+      currentChat = user;
+      
+      const t = translations[currentLang];
+      document.getElementById('headerName').innerHTML = `
+        ${user.username}
+        <div class="status-dot ${user.status === 'offline' ? 'offline' : ''}"></div>
+      `;
+      document.getElementById('headerStatus').textContent = 
+        user.status === 'online' ? t.online : t.offline;
+      document.getElementById('headerAvatar').textContent = user.username.charAt(0).toUpperCase();
+      
+      await loadMessages(user.id);
+      renderChatList();
+    }
+    
+    // Load messages
+    async function loadMessages(userId) {
+      try {
+        const response = await fetch(`${API_URL}/api/v1/messages/${currentUser.id}`);
+        const data = await response.json();
+        
+        const chatMessages = data.messages.filter(m => 
+          (m.from_user === currentUser.id && m.to_user === userId) ||
+          (m.from_user === userId && m.to_user === currentUser.id)
+        );
+        
+        messages[userId] = chatMessages;
+        renderMessages(chatMessages);
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+      }
+    }
+    
+    // Render messages with translation
+    function renderMessages(chatMessages) {
+      const container = document.getElementById('messagesContainer');
+      container.innerHTML = '';
+      
+      if (chatMessages.length === 0) {
+        const t = translations[currentLang];
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-title">${t.selectChat}</div>
+            <div class="empty-state-text">${t.toStart}</div>
+          </div>
+        `;
+        return;
+      }
+      
+      chatMessages.forEach(async msg => {
+        const el = document.createElement('div');
+        el.className = 'message message-' + (msg.from_user === currentUser.id ? 'out' : 'in');
+        
+        let translationHtml = '';
+        if (autoTranslate && msg.from_user !== currentUser.id) {
+          const translated = await translateText(msg.content, currentLang);
+          translationHtml = `<div class="message-translation">🌐 ${translated}</div>`;
+        }
+        
+        el.innerHTML = `
+          <div class="message-text">${escapeHtml(msg.content)}</div>
+          ${translationHtml}
+          <div class="message-meta">
+            ${formatTime(msg.created_at)}
+            ${msg.from_user === currentUser.id ? '<span class="message-checks">✓✓</span>' : ''}
+          </div>
+        `;
+        container.appendChild(el);
+      });
+      
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    // Translate text (using MyMemory free API)
+    async function translateText(text, targetLang) {
+      try {
+        const langMap = {
+          'ru': 'ru-RU', 'en': 'en-GB', 'bg': 'bg-BG',
+          'es': 'es-ES', 'de': 'de-DE', 'fr': 'fr-FR',
+          'it': 'it-IT', 'pt': 'pt-PT', 'zh': 'zh-CN',
+          'ja': 'ja-JP', 'ko': 'ko-KR', 'ar': 'ar-SA',
+          'hi': 'hi-IN', 'tr': 'tr-TR', 'uk': 'uk-UA',
+          'pl': 'pl-PL', 'ro': 'ro-RO', 'el': 'el-GR',
+          'cs': 'cs-CZ', 'sk': 'sk-SK'
+        };
+        
+        const sourceLang = 'en-GB'; // Assume English for demo
+        const target = langMap[targetLang] || 'en-GB';
+        
+        const response = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${target}`
+        );
+        const data = await response.json();
+        return data.responseData.translatedText || text;
+      } catch (error) {
+        return text;
+      }
+    }
+    
+    // Toggle auto-translate
+    function toggleTranslate() {
+      autoTranslate = !autoTranslate;
+      document.getElementById('translateToggle').classList.toggle('active');
+      
+      if (currentChat && messages[currentChat.id]) {
+        renderMessages(messages[currentChat.id]);
+      }
+    }
+    
+    // Send message
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !currentChat) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/api/v1/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_user: currentUser.id,
+            to_user: currentChat.id,
+            content: text,
+            encrypted: false
+          })
+        });
+        
+        if (response.ok) {
+          input.value = '';
+          await loadMessages(currentChat.id);
+          await loadUsers();
+        }
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
+    }
+    
+    // Handle key press
+    function handleKeyPress(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    }
+    
+    // Logout
+    function logout() {
+      if (currentUser) {
+        fetch(`${API_URL}/api/v1/users/${currentUser.id}/offline`, { method: 'POST' });
+      }
+      localStorage.removeItem('lr_user');
+      location.reload();
+    }
+    
+    // Polling
+    function startPolling() {
+      pollingInterval = setInterval(async () => {
+        if (currentChat) {
+          await loadMessages(currentChat.id);
+        }
+        await loadUsers();
+      }, 3000);
+    }
+    
+    // Utilities
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+      
+      const t = translations[currentLang];
+      if (diff < 60000) return t.now;
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'м';
+      if (diff < 86400000) return date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+      return date.getDate().toString().padStart(2, '0') + '.' + (date.getMonth() + 1).toString().padStart(2, '0');
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function toggleFeatures() {
+      document.getElementById('featuresPanel').classList.toggle('active');
+    }
+    
+    // Initialize app
+    init();
+  </script>
+</body>
+</html>
