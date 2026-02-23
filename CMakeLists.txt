@@ -264,12 +264,35 @@ target_link_libraries(liberty_reach_family PUBLIC
     liberty_reach_crypto_cpp
 )
 
+# ============================================
+# Auto Translation Module
+# ============================================
+
+add_library(liberty_reach_translation STATIC
+    core/src/auto_translation.cpp
+)
+
+target_include_directories(liberty_reach_translation PUBLIC
+    ${CMAKE_SOURCE_DIR}/core/include
+)
+
+target_link_libraries(liberty_reach_translation PUBLIC
+    liberty_reach_crypto_cpp
+)
+
+# ============================================
+# Additional Features Module
+# ============================================
+
+# Header only for now - implementation in additional_features.cpp
+
 # Link to desktop
 if(BUILD_DESKTOP)
     target_link_libraries(liberty_reach_desktop
         liberty_reach_wallet
         liberty_reach_production
         liberty_reach_family
+        liberty_reach_translation
     )
 endif()
 
