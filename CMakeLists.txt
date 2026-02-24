@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(LibertyReachMessenger VERSION 0.1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -20,12 +20,16 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23")
 
 # Find required packages
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(OPENSSL REQUIRED openssl)
 pkg_check_modules(SODIUM REQUIRED libsodium)
 pkg_check_modules(CURL REQUIRED libcurl)
+
+# Blake3 headers from Cargo
+set(BLAKE3_INCLUDE_DIR "/home/kostik/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/blake3-1.8.3/c")
 
 # ============================================
 # Crypto Core (Rust + C++)
@@ -64,6 +68,7 @@ target_include_directories(liberty_reach_crypto_cpp PUBLIC
     ${CMAKE_SOURCE_DIR}/core/include
     ${OPENSSL_INCLUDE_DIRS}
     ${SODIUM_INCLUDE_DIRS}
+    ${BLAKE3_INCLUDE_DIR}
 )
 
 target_link_libraries(liberty_reach_crypto_cpp PUBLIC
@@ -163,16 +168,14 @@ endif()
 if(BUILD_CLI)
     add_executable(liberty_reach_cli
         cli/src/main.cpp
-        cli/src/cli_app.cpp
     )
-    
+
     target_include_directories(liberty_reach_cli PUBLIC
         ${CMAKE_SOURCE_DIR}/core/include
     )
-    
+
     target_link_libraries(liberty_reach_cli
         liberty_reach_crypto_cpp
-        liberty_reach_mesh
         ${CURL_LIBRARIES}
     )
 endif()
@@ -204,9 +207,17 @@ endif()
 # Installation
 # ============================================
 
-install(TARGETS liberty_reach_desktop liberty_reach_cli
-    RUNTIME DESTINATION bin
-)
+if(BUILD_DESKTOP)
+    install(TARGETS liberty_reach_desktop
+        RUNTIME DESTINATION bin
+    )
+endif()
+
+if(BUILD_CLI)
+    install(TARGETS liberty_reach_cli
+        RUNTIME DESTINATION bin
+    )
+endif()
 
 install(FILES core/include/liberty_reach_crypto.h core/include/network_client.h
     DESTINATION include/liberty_reach

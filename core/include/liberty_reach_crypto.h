@@ -1,6 +1,6 @@
 /**
  * Liberty Reach Crypto - C++ Header
- * 
+ *
  * Cryptographic module for TDLib integration
  * Provides Post-Quantum encryption, Steganography, and Profile Management
  */
@@ -12,6 +12,9 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <span>
+#include <expected>
+#include <cstdint>
 
 namespace td {
 namespace liberty_reach {
@@ -20,8 +23,8 @@ namespace liberty_reach {
 using ByteArray = std::vector<std::uint8_t>;
 using ByteSpan = std::span<const std::uint8_t>;
 
-// Key sizes
-constexpr std::size_t PQ_PUBLIC_KEY_SIZE = 1088;   // Kyber768
+// Key sizes - updated for Kyber768
+constexpr std::size_t PQ_PUBLIC_KEY_SIZE = 1184;   // Kyber768
 constexpr std::size_t PQ_SECRET_KEY_SIZE = 2400;   // Kyber768
 constexpr std::size_t X25519_KEY_SIZE = 32;
 constexpr std::size_t ED25519_PUBLIC_KEY_SIZE = 32;

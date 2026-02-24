@@ -11,7 +11,7 @@
 #include <openssl/sha.h>
 #include <sodium.h>
 #include <blake3.h>
-#include <pqcrypto/kyber/kyber768.h>
+// #include <pqcrypto/kyber/kyber768.h>  // Not available, using Rust implementation
 
 #include <random>
 #include <cstring>

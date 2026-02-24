@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liberty Reach Messenger</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --message-in: #f1f5f9;
+            --message-out: #2563eb;
+            --message-out-text: #ffffff;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Login Screen */
+        .login-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 20px;
+        }
+
+        .login-card {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 15px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--message-out-text);
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-icon {
+            padding: 8px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .btn-icon:hover {
+            background: var(--bg);
+            color: var(--primary);
+        }
+
+        /* Chat App */
+        .chat-app {
+            display: none;
+            height: 100vh;
+        }
+
+        .chat-app.active {
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 360px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-header h2 {
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-details .username {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .user-details .status {
+            font-size: 13px;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .user-details .status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+        }
+
+        .chat-search {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chat-search input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chat-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chat-item:hover {
+            background: var(--bg);
+        }
+
+        .chat-item.active {
+            background: rgba(37, 99, 235, 0.1);
+            border-left: 3px solid var(--primary);
+        }
+
+        .chat-item .avatar {
+            width: 48px;
+            height: 48px;
+            font-size: 16px;
+        }
+
+        .chat-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .chat-item-name {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .chat-item-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .chat-item-last-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-item-unread {
+            background: var(--primary);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* Main Chat Area */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+        }
+
+        .chat-header {
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .chat-header .avatar {
+            width: 44px;
+            height: 44px;
+        }
+
+        .chat-header-info {
+            flex: 1;
+        }
+
+        .chat-header-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .chat-header-status {
+            font-size: 13px;
+            color: var(--success);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 70%;
+        }
+
+        .message.incoming {
+            align-self: flex-start;
+        }
+
+        .message.outgoing {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 16px;
+            background: var(--message-in);
+            color: var(--text);
+            position: relative;
+        }
+
+        .message.outgoing .message-bubble {
+            background: var(--message-out);
+            color: var(--message-out-text);
+        }
+
+        .message-content {
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .message-status {
+            display: inline-block;
+            margin-left: 4px;
+        }
+
+        /* Chat Input */
+        .chat-input {
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid var(--border);
+            border-radius: 24px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input input:focus {
+            border-color: var(--primary);
+        }
+
+        .chat-input-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-send {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .btn-send:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-send:disabled {
+            background: var(--secondary);
+            cursor: not-allowed;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        /* Connection Status */
+        .connection-status {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            box-shadow: var(--shadow-lg);
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            z-index: 1000;
+        }
+
+        .connection-status.connecting {
+            display: flex;
+            color: var(--warning);
+        }
+
+        .connection-status.connected {
+            display: flex;
+            color: var(--success);
+        }
+
+        .connection-status.disconnected {
+            display: flex;
+            color: var(--danger);
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: absolute;
+                z-index: 100;
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .chat-main {
+                width: 100%;
+            }
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>🦅 Liberty Reach</h1>
+                <p>Безопасный мессенджер нового поколения</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Имя пользователя</label>
+                    <input type="text" id="username" placeholder="Введите имя (мин. 3 символа)" required minlength="3">
+                </div>
+                <div class="form-group">
+                    <label for="language">Язык интерфейса</label>
+                    <select id="language">
+                        <option value="ru">🇷🇺 Русский</option>
+                        <option value="en">🇺🇸 English</option>
+                        <option value="bg">🇧🇬 Български</option>
+                        <option value="es">🇪🇸 Español</option>
+                        <option value="de">🇩🇪 Deutsch</option>
+                        <option value="fr">🇫🇷 Français</option>
+                        <option value="zh">🇨🇳 中文</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <span id="loginBtnText">Войти</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Chat App -->
+    <div class="chat-app" id="chatApp">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>💬 Чаты</h2>
+                <button class="btn btn-icon" id="logoutBtn" title="Выйти">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="user-info">
+                <div class="avatar" id="userAvatar">U</div>
+                <div class="user-details">
+                    <div class="username" id="currentUsername">User</div>
+                    <div class="status">Онлайн</div>
+                </div>
+            </div>
+            <div class="chat-search">
+                <input type="text" id="chatSearch" placeholder="Поиск чатов...">
+            </div>
+            <div class="chat-list" id="chatList">
+                <!-- Chat items will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Main Chat -->
+        <div class="chat-main">
+            <div class="chat-header" id="chatHeader" style="display: none;">
+                <div class="avatar" id="chatAvatar">C</div>
+                <div class="chat-header-info">
+                    <div class="chat-header-name" id="chatHeaderName">Chat</div>
+                    <div class="chat-header-status" id="chatHeaderStatus">Онлайн</div>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state" id="emptyState">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    <h3>Выберите чат</h3>
+                    <p>Выберите пользователя из списка слева</p>
+                </div>
+            </div>
+            <div class="chat-input" id="chatInput" style="display: none;">
+                <input type="text" id="messageInput" placeholder="Напишите сообщение..." autocomplete="off">
+                <div class="chat-input-actions">
+                    <button class="btn-send" id="sendBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connectionStatus">
+        <span class="connection-dot"></span>
+        <span id="connectionText">Подключение...</span>
+    </div>
+
+    <script>
+        // ============================================
+        // Конфигурация
+        // ============================================
+        const API_URL = 'http://localhost:8787';
+        const WS_URL = 'ws://localhost:8788';
+
+        // ============================================
+        // Состояние приложения
+        // ============================================
+        let currentUser = null;
+        let sessionToken = null;
+        let currentChat = null;
+        let users = [];
+        let messages = {};
+        let ws = null;
+        let reconnectAttempts = 0;
+
+        // ============================================
+        // DOM элементы
+        // ============================================
+        const loginScreen = document.getElementById('loginScreen');
+        const chatApp = document.getElementById('chatApp');
+        const loginForm = document.getElementById('loginForm');
+        const chatList = document.getElementById('chatList');
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatHeader = document.getElementById('chatHeader');
+        const chatInput = document.getElementById('chatInput');
+        const emptyState = document.getElementById('emptyState');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionText = document.getElementById('connectionText');
+
+        // ============================================
+        // Инициализация
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Проверяем сохранённую сессию
+            const savedToken = localStorage.getItem('session_token');
+            const savedUser = localStorage.getItem('current_user');
+            
+            if (savedToken && savedUser) {
+                sessionToken = savedToken;
+                currentUser = JSON.parse(savedUser);
+                showChatApp();
+            }
+        });
+
+        // ============================================
+        // Аутентификация
+        // ============================================
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            
+            try {
+                const response = await fetch(`${API_URL}/api/v1/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data.user;
+                    sessionToken = data.session_token;
+                    localStorage.setItem('session_token', sessionToken);
+                    localStorage.setItem('current_user', JSON.stringify(currentUser));
+                    showChatApp();
+                } else {
+                    // Пользователь не найден, регистрируем
+                    await registerUser(username);
+                }
+            } catch (error) {
+                alert('Ошибка подключения к серверу');
+                console.error(error);
+            }
+        });
+
+        async function registerUser(username) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username,
+                        public_key: 'pq_key_' + username,
+                        device_info: navigator.userAgent
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data.user;
+                    sessionToken = data.session_token;
+                    localStorage.setItem('session_token', sessionToken);
+                    localStorage.setItem('current_user', JSON.stringify(currentUser));
+                    showChatApp();
+                } else {
+                    alert(data.error || 'Ошибка регистрации');
+                }
+            } catch (error) {
+                alert('Ошибка регистрации');
+                console.error(error);
+            }
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            if (sessionToken) {
+                await fetch(`${API_URL}/api/v1/logout`, {
+                    method: 'POST',
+                    headers: { 'X-Session-Token': sessionToken }
+                });
+            }
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('current_user');
+            currentUser = null;
+            sessionToken = null;
+            if (ws) ws.close();
+            loginScreen.style.display = 'flex';
+            chatApp.classList.remove('active');
+        });
+
+        // ============================================
+        // WebSocket подключение
+        // ============================================
+        function connectWebSocket() {
+            if (!sessionToken) return;
+
+            connectionStatus.className = 'connection-status connecting';
+            connectionText.textContent = 'Подключение...';
+
+            try {
+                ws = new WebSocket(WS_URL);
+
+                ws.onopen = () => {
+                    reconnectAttempts = 0;
+                    ws.send(JSON.stringify({
+                        type: 'auth',
+                        token: sessionToken
+                    }));
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                };
+
+                ws.onclose = () => {
+                    connectionStatus.className = 'connection-status disconnected';
+                    connectionText.textContent = 'Нет соединения';
+                    
+                    // Reconnect
+                    if (reconnectAttempts < 5) {
+                        reconnectAttempts++;
+                        setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+                    }
+                };
+
+                ws.onerror = () => {
+                    console.error('WebSocket error');
+                };
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+            }
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'auth_success':
+                    connectionStatus.className = 'connection-status connected';
+                    connectionText.textContent = 'Онлайн';
+                    loadUsers();
+                    break;
+                case 'auth_error':
+                    connectionStatus.className = 'connection-status disconnected';
+                    connectionText.textContent = 'Ошибка авторизации';
+                    break;
+                case 'new_message':
+                    const msg = data.message;
+                    if (!messages[msg.chat_id]) messages[msg.chat_id] = [];
+                    messages[msg.chat_id].push(msg);
+                    if (currentChat && msg.chat_id.includes(currentChat.id)) {
+                        renderMessage(msg);
+                        loadMessages(currentChat.id);
+                    }
+                    loadChats();
+                    break;
+                case 'status_update':
+                    updateUserStatus(data.user_id, data.status);
+                    break;
+                case 'pong':
+                    // Heartbeat response
+                    break;
+            }
+        }
+
+        // ============================================
+        // UI функции
+        // ============================================
+        function showChatApp() {
+            loginScreen.style.display = 'none';
+            chatApp.classList.add('active');
+            
+            document.getElementById('currentUsername').textContent = currentUser.username;
+            document.getElementById('userAvatar').textContent = currentUser.username[0].toUpperCase();
+            
+            connectWebSocket();
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/users`, {
+                    headers: { 'X-Session-Token': sessionToken }
+                });
+                const data = await response.json();
+                users = data.users.filter(u => u.id !== currentUser.id);
+                loadChats();
+            } catch (error) {
+                console.error('Failed to load users:', error);
+            }
+        }
+
+        async function loadChats() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/chats/${currentUser.id}`, {
+                    headers: { 'X-Session-Token': sessionToken }
+                });
+                const data = await response.json();
+                
+                chatList.innerHTML = '';
+                
+                users.forEach(user => {
+                    const chat = data.chats.find(c => c.chat_user_id === user.id);
+                    const chatData = {
+                        ...user,
+                        last_message: chat?.last_message || '',
+                        last_message_time: chat?.last_message_time,
+                        unread_count: chat?.unread_count || 0
+                    };
+                    
+                    const chatEl = document.createElement('div');
+                    chatEl.className = 'chat-item' + (currentChat?.id === user.id ? ' active' : '');
+                    chatEl.innerHTML = `
+                        <div class="avatar">${user.username[0].toUpperCase()}</div>
+                        <div class="chat-item-content">
+                            <div class="chat-item-header">
+                                <span class="chat-item-name">${user.username}</span>
+                                <span class="chat-item-time">${formatTime(chatData.last_message_time)}</span>
+                            </div>
+                            <div class="chat-item-last-message">${chatData.last_message || 'Нет сообщений'}</div>
+                        </div>
+                        ${chatData.unread_count > 0 ? `<span class="chat-item-unread">${chatData.unread_count}</span>` : ''}
+                    `;
+                    chatEl.addEventListener('click', () => openChat(user));
+                    chatList.appendChild(chatEl);
+                });
+            } catch (error) {
+                console.error('Failed to load chats:', error);
+            }
+        }
+
+        async function openChat(user) {
+            currentChat = user;
+            
+            document.getElementById('chatAvatar').textContent = user.username[0].toUpperCase();
+            document.getElementById('chatHeaderName').textContent = user.username;
+            document.getElementById('chatHeaderStatus').textContent = user.status || 'Офлайн';
+            
+            chatHeader.style.display = 'flex';
+            chatInput.style.display = 'flex';
+            emptyState.style.display = 'none';
+            
+            // Обновляем активный чат в списке
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+            
+            await loadMessages(user.id);
+        }
+
+        async function loadMessages(userId) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/messages/${currentUser.id}`, {
+                    headers: { 'X-Session-Token': sessionToken }
+                });
+                const data = await response.json();
+                
+                // Фильтруем сообщения для текущего чата
+                const chatMessages = data.messages.filter(m => 
+                    (m.from_user === userId && m.to_user === currentUser.id) ||
+                    (m.from_user === currentUser.id && m.to_user === userId)
+                );
+                
+                chatMessages.innerHTML = '';
+                chatMessages.forEach(msg => renderMessage(msg));
+                
+                scrollToBottom();
+            } catch (error) {
+                console.error('Failed to load messages:', error);
+            }
+        }
+
+        function renderMessage(msg) {
+            const isOutgoing = msg.from_user === currentUser.id;
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${isOutgoing ? 'outgoing' : 'incoming'}`;
+            messageEl.innerHTML = `
+                <div class="message-bubble">
+                    <div class="message-content">${escapeHtml(msg.content)}</div>
+                    <div class="message-time">
+                        ${formatMessageTime(msg.created_at)}
+                        ${isOutgoing ? `<span class="message-status">${msg.read ? '✓✓' : '✓'}</span>` : ''}
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(messageEl);
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // ============================================
+        // Отправка сообщений
+        // ============================================
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content || !currentChat) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-Token': sessionToken
+                    },
+                    body: JSON.stringify({
+                        to_user: currentChat.id,
+                        content,
+                        message_type: 'text'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    messageInput.value = '';
+                    renderMessage(data.message);
+                    scrollToBottom();
+                    loadChats();
+                    
+                    // Отправляем через WebSocket если подключен
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'send_message',
+                            message: data.message
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to send message:', error);
+            }
+        }
+
+        // ============================================
+        // Утилиты
+        // ============================================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Только что';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+            if (diff < 86400000) return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+        }
+
+        function formatMessageTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function updateUserStatus(userId, status) {
+            const userEl = Array.from(document.querySelectorAll('.chat-item')).find(el => {
+                // Find by user id
+                return false; // Simplified
+            });
+            if (currentChat && currentChat.id === userId) {
+                document.getElementById('chatHeaderStatus').textContent = status === 'online' ? 'Онлайн' : 'Офлайн';
+            }
+            loadUsers();
+        }
+
+        // Heartbeat
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

@@ -10,9 +10,18 @@ database_name = "liberty-reach-db"
 database_id = "414477cc-8899-4ff2-be45-3174b224405d"
 migrations_dir = "migrations"
 
+# R2 хранилища
+[[r2_buckets]]
+bucket_name = "liberty-reach-encrypted-storage"
+binding = "ENCRYPTED_STORAGE"
+
+[[r2_buckets]]
+bucket_name = "liberty-reach-profile-backup"
+binding = "PROFILE_BACKUP"
+
 # Променливи
 [vars]
-TURN_SECRET = "my-secret-turn-password"
+TURN_SECRET = "${TURN_SECRET}"
 MAX_MESSAGE_SIZE = 4194304
 BULGARIA_EDGE = "sofia.libertyreach.internal"
 LOG_LEVEL = "info"

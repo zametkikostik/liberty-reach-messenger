@@ -6,8 +6,15 @@ authors = ["Liberty Reach Team <dev@libertyreach.internal>"]
 description = "Cryptographic core for Liberty Reach Messenger"
 license = "MIT"
 
+[lib]
+name = "liberty_reach_crypto"
+crate-type = ["staticlib", "rlib"]
+
 [dependencies]
-# Classical Cryptography
+# Post-Quantum Cryptography - working version
+pqc_kyber = "0.4"
+
+# Classical Cryptography - working versions
 x25519-dalek = { version = "2.0", features = ["static_secrets"] }
 ed25519-dalek = { version = "2.0", features = ["rand_core"] }
 
@@ -24,7 +31,7 @@ blake3 = "1.5"
 # Random
 rand = "0.8"
 
-# Zeroize
+# Zeroize - working version
 zeroize = { version = "1.7", features = ["derive"] }
 
 # Base64
@@ -33,6 +40,9 @@ base64 = "0.21"
 # Error handling
 thiserror = "1.0"
 
+# Logging
+log = "0.4"
+
 [features]
 default = ["std"]
 std = []
@@ -40,3 +50,4 @@ std = []
 [profile.release]
 opt-level = 3
 lto = true
+codegen-units = 1
