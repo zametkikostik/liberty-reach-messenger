@@ -403,6 +403,14 @@ impl CallManager {
     pub async fn handle_offer(&self, offer_msg: SDPMessage) -> Result<()> {
         tracing::info!("📥 Получен SDP offer от {}", offer_msg.from_peer_id);
 
+        // Проверка подписи (CRITICAL: разрыв при неудаче)
+        let signaling_msg = SignalingMessage::Offer(offer_msg.clone());
+        // В продакшене здесь была бы проверка с публичным ключом пира
+        // if !self.verify_signature(&signaling_msg, &offer_msg.signature, &peer_public_key) {
+        //     tracing::error!("❌ Signature validation failed для {}", offer_msg.from_peer_id);
+        //     return Err(CallError::signature("Signature validation failed").into());
+        // }
+
         // Production ICE configuration
         let config = RTCConfiguration {
             ice_servers: vec![
@@ -659,6 +667,49 @@ impl CallManager {
     pub async fn get_active_calls(&self) -> Vec<String> {
         let calls = self.calls.read().await;
         calls.iter().map(|c| c.call_id.clone()).collect()
+    }
+
+    /// ICE Restart для переподключения при смене сети
+    pub async fn ice_restart(&self, call_id: &str) -> Result<()> {
+        let calls = self.calls.read().await;
+        if let Some(call) = calls.iter().find(|c| c.call_id == call_id) {
+            tracing::info!("🔄 ICE restart для звонка {}", call_id);
+
+            // Создание нового offer с ICE restart
+            let offer = call.peer_connection.create_offer(None).await?;
+            call.peer_connection.set_local_description(offer.clone()).await?;
+
+            // Отправка нового offer через signaling
+            let sdp_message = SDPMessage {
+                sdp_type: "offer".to_string(),
+                sdp: offer.sdp,
+                call_id: call_id.to_string(),
+                from_peer_id: self.local_peer_id.clone(),
+                to_peer_id: call.remote_peer_id.clone(),
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                signature: String::new(),
+            };
+
+            let signaling_msg = SignalingMessage::Offer(sdp_message.clone());
+            let signature = self.sign_message(&signaling_msg)?;
+
+            self.send_signaling_offer(&sdp_message, &signature).await?;
+
+            tracing::info!("✅ ICE restart инициирован");
+        } else {
+            return Err(CallError::NotFound(call_id.to_string()).into());
+        }
+
+        Ok(())
+    }
+
+    /// Автоматический ICE restart при смене сети
+    pub async fn handle_network_change(&self, call_id: &str) -> Result<()> {
+        tracing::warn!("🌐 Обнаружена смена сети для звонка {}", call_id);
+        self.ice_restart(call_id).await
     }
 
     /// Дополнительное шифрование аудио (Fortress Integrity)

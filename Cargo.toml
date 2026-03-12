@@ -79,6 +79,7 @@ hex = "0.4"
 # Требует libasound2-dev в системе
 cpal = { version = "0.15", optional = true }
 rodio = { version = "0.17", optional = true }
+opus = { version = "0.3", optional = true }
 
 # WebRTC для P2P звонков
 webrtc = { version = "0.7", optional = true }
