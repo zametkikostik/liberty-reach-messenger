@@ -1,0 +1,29 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Идентичность и ключи (НИКОГДА не коммитить!)
+identity.key
+*.key
+
+# Переменные окружения с секретами
+.env
+.env.local
+.env.*.local
+
+# Логи
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Linux
+Thumbs.db

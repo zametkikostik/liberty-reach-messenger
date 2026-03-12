@@ -1,0 +1,75 @@
+[package]
+name = "liberty-reach-messenger"
+version = "0.4.0-fortress-stable"
+edition = "2021"
+description = "Decentralized P2P Messenger with E2EE, AI, Web3 & Family Status"
+authors = ["Liberty Reach Team"]
+
+[dependencies]
+# P2P Networking - libp2p v0.53
+libp2p = { version = "0.53", features = [
+    "tcp",
+    "noise",
+    "yamux",
+    "gossipsub",
+    "kad",
+    "mdns",
+    "tokio",
+    "macros",
+    "ecdsa",
+    "ed25519",
+    "relay",
+    "autonat",
+    "dcutr",
+    "dns",
+    "identify",
+] }
+
+# Async Runtime
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+# Cryptography
+aes-gcm = "0.10"
+sha2 = "0.10"
+x25519-dalek = "2"
+rand = "0.8"
+zeroize = "1"
+
+# AI Integration
+reqwest = { version = "0.11", features = ["json", "multipart"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Environment & Configuration
+dotenvy = "0.15"
+
+# Error Handling & Logging
+anyhow = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+log = "0.4"
+
+# CLI UI
+colored = "2"
+
+# WebSocket Server
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+
+# Web3 / Ethers
+ethers = { version = "2", features = ["rustls"] }
+
+# Base64 for file encoding
+base64 = "0.21"
+
+# MIME type detection
+mime_guess = "2"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# HMAC for API signatures
+hmac = "0.12"
+hex = "0.4"
