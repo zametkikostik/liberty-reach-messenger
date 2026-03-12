@@ -3044,6 +3044,7 @@ dependencies = [
  "colored",
  "cpal",
  "dotenvy",
+ "ed25519-dalek",
  "ethers",
  "futures",
  "futures-util",

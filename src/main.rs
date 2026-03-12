@@ -226,9 +226,10 @@ async fn run() -> Result<()> {
     {
         let mut state = app_state.write().await;
         let signaling_url = std::env::var("SIGNALING_URL").unwrap_or_else(|_| "https://secure-messenger-push.kostik.workers.dev".to_string());
-        // Получаем private key для подписи signaling сообщений
-        let private_key = state.profile_manager.get_private_key();
-        match CallManager::new(&peer_id.to_string(), &signaling_url, &private_key).await {
+        // Получаем seed для Ed25519 ключей (32 байта)
+        let seed = state.profile_manager.get_private_key();
+        let seed_array: [u8; 32] = seed;
+        match CallManager::new(&peer_id.to_string(), &signaling_url, &seed_array).await {
             Ok(call_mgr) => {
                 state.call_manager = Some(call_mgr);
                 println!("{} {}", "✓ Calls:".green(), "WebRTC звонки активированы".bright_white());
