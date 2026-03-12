@@ -73,3 +73,20 @@ chrono = { version = "0.4", features = ["serde"] }
 # HMAC for API signatures
 hmac = "0.12"
 hex = "0.4"
+
+# Voice & Audio (cpal для захвата звука, opus для сжатия)
+# Требует libasound2-dev в системе
+cpal = { version = "0.15", optional = true }
+rodio = { version = "0.17", optional = true }
+
+# WebRTC для P2P звонков
+webrtc = { version = "0.7", optional = true }
+async-trait = "0.1"
+
+# UUID для генерации уникальных ID
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+default = ["voice", "calls"]
+voice = ["cpal", "rodio"]
+calls = ["webrtc"]

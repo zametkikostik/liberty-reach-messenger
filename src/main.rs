@@ -32,6 +32,12 @@ mod wallet;
 mod exchange;
 mod admin;
 mod stories;
+mod groups;
+
+#[cfg(feature = "voice")]
+mod voice;
+#[cfg(feature = "calls")]
+mod calls;
 
 use crypto::CipherManager;
 use identity::{ProfileManager, RelationshipType, RelationshipRequest};
@@ -41,6 +47,12 @@ use rand::RngCore;
 #[allow(unused_imports)]
 use admin::PeerMetadata;
 use stories::StoryMediaType;
+
+#[cfg(feature = "voice")]
+use voice::VoiceManager;
+#[cfg(feature = "calls")]
+use calls::CallManager;
+use groups::GroupManager;
 
 /// Сообщения для WebSocket клиентов
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -83,6 +95,11 @@ pub struct AppState {
     pub exchange_manager: Option<exchange::ExchangeManager>,
     pub admin_manager: admin::AdminManager,
     pub story_manager: stories::StoryManager,
+    #[cfg(feature = "voice")]
+    pub voice_manager: Option<VoiceManager>,
+    #[cfg(feature = "calls")]
+    pub call_manager: Option<CallManager>,
+    pub group_manager: GroupManager,
     pub connected_peers: Vec<PeerId>,
     pub message_history: Vec<String>,
 }
@@ -96,6 +113,11 @@ impl AppState {
             exchange_manager: None,
             admin_manager: admin::AdminManager::new(admin::AdminConfig::new()),
             story_manager: stories::StoryManager::new(),
+            #[cfg(feature = "voice")]
+            voice_manager: None,
+            #[cfg(feature = "calls")]
+            call_manager: None,
+            group_manager: GroupManager::new(&peer_id.to_string()),
             connected_peers: Vec::new(),
             message_history: Vec::new(),
         }
@@ -177,6 +199,39 @@ async fn run() -> Result<()> {
         state.admin_manager.config.set_admin_peer_id(&peer_id.to_string());
         if state.admin_manager.config.is_configured() {
             println!("{} {}", "✓ Admin:".green(), "Панель администратора активирована".bright_white());
+        }
+    }
+
+    // Инициализация Voice Manager
+    #[cfg(feature = "voice")]
+    {
+        let mut state = app_state.write().await;
+        // Используем тот же ключ что и для CipherManager
+        let cipher_key = state.profile_manager.get_cipher_key();
+        match VoiceManager::new(&cipher_key) {
+            Ok(voice_mgr) => {
+                state.voice_manager = Some(voice_mgr);
+                println!("{} {}", "✓ Voice:".green(), "Голосовые сообщения активированы".bright_white());
+            }
+            Err(e) => {
+                tracing::warn!("Voice Manager не подключен: {}", e);
+            }
+        }
+    }
+
+    // Инициализация Call Manager (WebRTC)
+    #[cfg(feature = "calls")]
+    {
+        let mut state = app_state.write().await;
+        let signaling_url = std::env::var("SIGNALING_URL").unwrap_or_else(|_| "https://secure-messenger-push.kostik.workers.dev".to_string());
+        match CallManager::new(&peer_id.to_string(), &signaling_url).await {
+            Ok(call_mgr) => {
+                state.call_manager = Some(call_mgr);
+                println!("{} {}", "✓ Calls:".green(), "WebRTC звонки активированы".bright_white());
+            }
+            Err(e) => {
+                tracing::warn!("Call Manager не подключен: {}", e);
+            }
         }
     }
 

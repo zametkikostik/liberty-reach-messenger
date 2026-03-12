@@ -58,6 +58,27 @@ Liberty Reach — это децентрализованная P2P-платфор
 - **Семейные статусы** — визуальные индикаторы отношений
 - **Персонализация** — настройка под предпочтения пользователя
 
+### 🎤 Voice Messages (NEW)
+- **cpal** — захват звука с микрофона
+- **Opus codec** — эффективное сжатие аудио
+- **E2EE** — шифрование AES-256-GCM перед отправкой
+- **IPFS/Pinata** — децентрализованное хранение
+- **Команды**: `/voice_start`, `/voice_stop`, `/voice_play`
+
+### 📞 WebRTC Calls (NEW)
+- **webrtc-rs** — P2P аудио/видео звонки
+- **Signaling** — через Cloudflare Worker
+- **DTLS-SRTP** — шифрование медиа трафика
+- **STUN/TURN** — обход NAT и фаерволов
+- **Команды**: `/call audio`, `/call video`, `/call end`
+
+### 👥 Group Chats (NEW)
+- **Динамические топики** — `liberty-group-[ID]` в Gossipsub
+- **Роли** — Owner, Admin, Moderator, Member
+- **Групповое шифрование** — общий ключ для участников
+- **Права доступа** — приглашение, кик, настройки
+- **Команды**: `/group create`, `/group join`, `/group invite`
+
 ---
 
 ## 🏰 Security (The Fortress)
@@ -285,13 +306,45 @@ WEB3_RPC_URL=https://polygon-rpc.com
 # Telegram Bridge (опционально)
 TELEGRAM_BOT_TOKEN=your-bot-token
 
-# Cloudflare KV (для push-уведомлений)
+# Cloudflare KV (для push-уведомлений и signaling)
 CLOUDFLARE_API_KEY=your-cf-api-key
 CLOUDFLARE_ACCOUNT_ID=your-cf-account-id
 KV_NAMESPACE_ID=your-kv-namespace-id
+
+# WebRTC Signaling (опционально)
+SIGNALING_URL=https://secure-messenger-push.kostik.workers.dev
 ```
 
-### Шаг 5: Сборка релизной версии
+### Шаг 5.5: Сборка с Feature Flags
+
+```bash
+# Сборка со всеми функциями (требует libasound2-dev)
+cargo build --release
+
+# Сборка без Voice/Calls (не требует аудио-библиотек)
+cargo build --release --no-default-features
+
+# Сборка только с Voice
+cargo build --release --no-default-features --features voice
+
+# Сборка только с Calls
+cargo build --release --no-default-features --features calls
+
+# Сборка только с Groups (без аудио)
+cargo build --release --no-default-features
+```
+
+**Системные зависимости для Voice/Calls:**
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install -y libasound2-dev pkg-config
+
+# Fedora/RHEL
+sudo dnf install -y alsa-lib-devel pkg-config
+```
+
+### Шаг 6: Сборка релизной версии
 
 ```bash
 # Сборка оптимизированной версии
@@ -301,7 +354,7 @@ cargo build --release
 ./target/release/liberty-reach-messenger --help
 ```
 
-### Шаг 6: Создание systemd сервиса
+### Шаг 7: Создание systemd сервиса
 
 ```bash
 # Создание файла сервиса
@@ -348,7 +401,7 @@ systemctl status liberty-reach
 journalctl -u liberty-reach -f
 ```
 
-### Шаг 7: Настройка брандмауэра (UFW)
+### Шаг 8: Настройка брандмауэра (UFW)
 
 ```bash
 # Установка UFW
@@ -369,7 +422,7 @@ ufw enable
 ufw status
 ```
 
-### Шаг 8: Установка Ollama (опционально для локального AI)
+### Шаг 9: Установка Ollama (опционально для локального AI)
 
 ```bash
 # Установка Ollama
@@ -382,7 +435,7 @@ ollama pull qwen2.5-coder:3b
 ollama run qwen2.5-coder:3b "Hello"
 ```
 
-### Шаг 9: Мониторинг и управление
+### Шаг 10: Мониторинг и управление
 
 ```bash
 # Статус сервиса
@@ -401,7 +454,7 @@ journalctl -u liberty-reach -f
 journalctl -u liberty-reach --since "1 hour ago"
 ```
 
-### Шаг 10: Обновление
+### Шаг 11: Обновление
 
 ```bash
 # Перейти в директорию
@@ -434,6 +487,9 @@ cargo test -- --nocapture
 # Тесты конкретного модуля
 cargo test crypto
 cargo test identity
+
+# Тесты без voice/calls (не требуют аудио-библиотек)
+cargo test --no-default-features
 ```
 
 **Покрываемые модули:**
@@ -445,6 +501,11 @@ cargo test identity
 | `storage` | Сериализация P2P-передачи файлов |
 | `bridge` | Конфигурация Telegram-бота |
 | `wallet` | Информация о кошельке, балансы токенов |
+| `admin` | Проверка прав, zeroize, верификация |
+| `groups` | Создание групп, шифрование, роли |
+| `stories` | Создание и просмотр историй |
+
+**Результат:** 24 теста пройдено ✅
 
 ---
 
@@ -458,18 +519,23 @@ liberty-reach-messenger/
 ├── README.md               # Документация
 ├── .env.local              # Секреты (не коммитить!)
 ├── identity.key            # Приватный ключ (не коммитить!)
+├── docs/
+│   └── LEGAL_PRIVACY_BG.md # Юридический документ (BG)
 └── src/
-    ├── main.rs             # 631 строка: ядро + WebSocket сервер
-    ├── identity.rs         # 359 строк: профили, отношения, статусы
-    ├── crypto.rs           # 306 строк: AES-GCM, X25519 DH
-    ├── network.rs          # 114 строк: libp2p поведение
-    ├── ai.rs               # 247 строк: Ollama + OpenRouter
-    ├── storage.rs          # 270 строк: Pinata IPFS
-    ├── bridge.rs           # 391 строка: Telegram мост
-    ├── wallet.rs           # 241 строка: Web3 Polygon
+    ├── main.rs             # Ядро + WebSocket сервер
+    ├── identity.rs         # Профили, отношения, статусы
+    ├── crypto.rs           # AES-GCM, X25519 DH
+    ├── network.rs          # libp2p поведение
+    ├── ai.rs               # Ollama + OpenRouter
+    ├── storage.rs          # Pinata IPFS
+    ├── bridge.rs           # Telegram мост
+    ├── wallet.rs           # Web3 Polygon
     ├── exchange.rs         # Агрегатор ликвидности DEX
-    ├── admin.rs            # Админ-функции (rate limiting)
-    └── stories.rs          # 24h истории (IPFS)
+    ├── admin.rs            # Админ-функции, zeroize, Geo-Trace
+    ├── stories.rs          # 24h истории (IPFS)
+    ├── voice.rs            # Голосовые сообщения (cpal, opus) [feature]
+    ├── calls.rs            # WebRTC звонки [feature]
+    └── groups.rs           # Групповые чаты
 ```
 
 ---
