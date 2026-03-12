@@ -30,6 +30,7 @@ use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::{Aead, Key};
 use rand::RngCore;
 use ed25519_dalek::{SigningKey, Signature, Signer, Verifier, VerifyingKey};
+use std::collections::HashMap;
 
 /// Production error types для звонков
 #[derive(Debug, thiserror::Error)]
@@ -45,6 +46,9 @@ pub enum CallError {
     
     #[error("Signature error: {0}")]
     Signature(String),
+    
+    #[error("Signature validation failed - disconnecting")]
+    SignatureValidationFailed,
     
     #[error("Call not found: {0}")]
     NotFound(String),
@@ -179,6 +183,8 @@ pub struct CallManager {
     verifying_key: VerifyingKey,
     /// Шифр для дополнительного шифрования аудио
     cipher: Aes256Gcm,
+    /// Кэш публичных ключей других пиров (peer_id -> public_key)
+    peer_public_keys: Arc<RwLock<HashMap<String, VerifyingKey>>>,
 }
 
 impl CallManager {
@@ -210,6 +216,7 @@ impl CallManager {
             signing_key,
             verifying_key,
             cipher,
+            peer_public_keys: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
@@ -226,23 +233,54 @@ impl CallManager {
         Ok(sig_hex)
     }
 
-    /// Проверка подписи сообщения
-    fn verify_signature(&self, message: &SignalingMessage, signature: &str, peer_public_key: &VerifyingKey) -> bool {
-        if let Ok(sig_bytes) = hex::decode(signature) {
-            if let Ok(signature) = Signature::from_bytes(&sig_bytes.try_into().unwrap_or([0u8; 64])) {
-                if let Ok(json) = serde_json::to_string(message) {
-                    let result = peer_public_key.verify(json.as_bytes(), &signature);
-                    if result.is_ok() {
-                        tracing::debug!("✅ Подпись подтверждена");
-                    } else {
-                        tracing::warn!("❌ Подпись не подтверждена");
-                    }
-                    return result.is_ok();
-                }
-            }
-        }
-        tracing::warn!("❌ Неверный формат подписи");
-        false
+    /// Проверка подписи сообщения с auto-disconnect при неудаче
+    fn verify_signature_strict(&self, message: &SignalingMessage, signature: &str, peer_id: &str) -> Result<()> {
+        // Получение публичного ключа пира
+        let peer_keys = self.peer_public_keys.read().await;
+        let peer_public_key = peer_keys.get(peer_id)
+            .ok_or_else(|| CallError::signature(format!("Public key not found for peer: {}", peer_id)))?;
+        
+        // Декодирование подписи
+        let sig_bytes = hex::decode(signature)
+            .map_err(|e| CallError::signature(format!("Invalid hex signature: {}", e)))?;
+        
+        let signature_bytes: [u8; 64] = sig_bytes.try_into()
+            .map_err(|_| CallError::signature("Invalid signature length"))?;
+        
+        let signature = Signature::from_bytes(&signature_bytes);
+        
+        // Верификация
+        let json = serde_json::to_string(message)
+            .map_err(|e| CallError::signaling(format!("JSON serialization failed: {}", e)))?;
+        
+        peer_public_key.verify(json.as_bytes(), &signature)
+            .map_err(|e| {
+                tracing::error!("❌ CRITICAL: Signature validation FAILED for peer {} - POTENTIAL MITM ATTACK!", peer_id);
+                tracing::error!("   Error: {:?}", e);
+                CallError::SignatureValidationFailed
+            })?;
+        
+        tracing::debug!("✅ Signature verified for peer {}", peer_id);
+        Ok(())
+    }
+
+    /// Добавление публичного ключа пира
+    pub async fn add_peer_public_key(&self, peer_id: &str, public_key: &[u8]) -> Result<()> {
+        let verifying_key = VerifyingKey::from_bytes(public_key)
+            .map_err(|e| CallError::signature(format!("Invalid public key: {}", e)))?;
+        
+        let mut peer_keys = self.peer_public_keys.write().await;
+        peer_keys.insert(peer_id.to_string(), verifying_key);
+        
+        tracing::info!("✅ Public key added for peer {}", peer_id);
+        Ok(())
+    }
+
+    /// Удаление публичного ключа пира (при разрыве соединения)
+    pub async fn remove_peer_public_key(&self, peer_id: &str) {
+        let mut peer_keys = self.peer_public_keys.write().await;
+        peer_keys.remove(peer_id);
+        tracing::debug!("🗑️ Public key removed for peer {}", peer_id);
     }
 
     /// Начать исходящий звонок
@@ -403,13 +441,18 @@ impl CallManager {
     pub async fn handle_offer(&self, offer_msg: SDPMessage) -> Result<()> {
         tracing::info!("📥 Получен SDP offer от {}", offer_msg.from_peer_id);
 
-        // Проверка подписи (CRITICAL: разрыв при неудаче)
+        // ПРОВЕРКА ПОДПИСИ (CRITICAL: разрыв при неудаче)
         let signaling_msg = SignalingMessage::Offer(offer_msg.clone());
-        // В продакшене здесь была бы проверка с публичным ключом пира
-        // if !self.verify_signature(&signaling_msg, &offer_msg.signature, &peer_public_key) {
-        //     tracing::error!("❌ Signature validation failed для {}", offer_msg.from_peer_id);
-        //     return Err(CallError::signature("Signature validation failed").into());
-        // }
+        if let Err(e) = self.verify_signature_strict(&signaling_msg, &offer_msg.signature, &offer_msg.from_peer_id).await {
+            tracing::error!("🚨 CRITICAL SECURITY: Signature validation FAILED for offer from {}", offer_msg.from_peer_id);
+            tracing::error!("   Disconnecting immediately to prevent potential MITM attack");
+            
+            // Auto-disconnect: завершаем все звонки с этим пиром
+            self.force_disconnect_peer(&offer_msg.from_peer_id).await?;
+            
+            return Err(e.into());
+        }
+        tracing::info!("✅ Signature verified for offer from {}", offer_msg.from_peer_id);
 
         // Production ICE configuration
         let config = RTCConfiguration {
@@ -590,6 +633,38 @@ impl CallManager {
         Ok(())
     }
 
+    /// Обработка входящего SDP answer
+    pub async fn handle_answer(&self, answer_msg: SDPMessage) -> Result<()> {
+        tracing::info!("📥 Получен SDP answer от {}", answer_msg.from_peer_id);
+
+        // ПРОВЕРКА ПОДПИСИ (CRITICAL: разрыв при неудаче)
+        let signaling_msg = SignalingMessage::Answer(answer_msg.clone());
+        if let Err(e) = self.verify_signature_strict(&signaling_msg, &answer_msg.signature, &answer_msg.from_peer_id).await {
+            tracing::error!("🚨 CRITICAL SECURITY: Signature validation FAILED for answer from {}", answer_msg.from_peer_id);
+            tracing::error!("   Disconnecting immediately to prevent potential MITM attack");
+            
+            // Auto-disconnect
+            self.force_disconnect_peer(&answer_msg.from_peer_id).await?;
+            
+            return Err(e.into());
+        }
+        tracing::info!("✅ Signature verified for answer from {}", answer_msg.from_peer_id);
+
+        // Поиск звонка
+        let calls = self.calls.read().await;
+        if let Some(call) = calls.iter().find(|c| c.call_id == answer_msg.call_id) {
+            // Установка remote description
+            let remote_desc = RTCSessionDescription::answer(answer_msg.sdp)?;
+            call.peer_connection.set_remote_description(remote_desc).await?;
+            
+            tracing::info!("✅ SDP answer установлен для звонка {}", answer_msg.call_id);
+        } else {
+            return Err(CallError::NotFound(answer_msg.call_id).into());
+        }
+
+        Ok(())
+    }
+
     /// Отправка ICE кандидата через Cloudflare Worker
     async fn send_ice_candidate_to_worker(
         http_client: &reqwest::Client,
@@ -710,6 +785,31 @@ impl CallManager {
     pub async fn handle_network_change(&self, call_id: &str) -> Result<()> {
         tracing::warn!("🌐 Обнаружена смена сети для звонка {}", call_id);
         self.ice_restart(call_id).await
+    }
+
+    /// Принудительный разрыв соединения с пиром (security)
+    pub async fn force_disconnect_peer(&self, peer_id: &str) -> Result<()> {
+        tracing::warn!("🚨 Force disconnect peer {}", peer_id);
+        
+        // Завершение всех звонков с этим пиром
+        let mut calls = self.calls.write().await;
+        let calls_to_remove: Vec<usize> = calls.iter()
+            .enumerate()
+            .filter(|(_, c)| c.remote_peer_id == peer_id)
+            .map(|(i, _)| i)
+            .collect();
+        
+        for index in calls_to_remove.into_iter().rev() {
+            let call = calls.remove(index);
+            tracing::warn!("📴 Closing call {} with peer {}", call.call_id, peer_id);
+            let _ = call.peer_connection.close().await;
+        }
+        
+        // Удаление публичного ключа
+        self.remove_peer_public_key(peer_id).await;
+        
+        tracing::warn!("✅ Force disconnect completed for peer {}", peer_id);
+        Ok(())
     }
 
     /// Дополнительное шифрование аудио (Fortress Integrity)
