@@ -208,7 +208,9 @@ async fn run() -> Result<()> {
         let mut state = app_state.write().await;
         // Используем тот же ключ что и для CipherManager
         let cipher_key = state.profile_manager.get_cipher_key();
-        match VoiceManager::new(&cipher_key) {
+        // Получаем private key из identity keys для подписи
+        let private_key = state.profile_manager.get_private_key();
+        match VoiceManager::new(&cipher_key, &private_key) {
             Ok(voice_mgr) => {
                 state.voice_manager = Some(voice_mgr);
                 println!("{} {}", "✓ Voice:".green(), "Голосовые сообщения активированы".bright_white());
@@ -224,7 +226,9 @@ async fn run() -> Result<()> {
     {
         let mut state = app_state.write().await;
         let signaling_url = std::env::var("SIGNALING_URL").unwrap_or_else(|_| "https://secure-messenger-push.kostik.workers.dev".to_string());
-        match CallManager::new(&peer_id.to_string(), &signaling_url).await {
+        // Получаем private key для подписи signaling сообщений
+        let private_key = state.profile_manager.get_private_key();
+        match CallManager::new(&peer_id.to_string(), &signaling_url, &private_key).await {
             Ok(call_mgr) => {
                 state.call_manager = Some(call_mgr);
                 println!("{} {}", "✓ Calls:".green(), "WebRTC звонки активированы".bright_white());

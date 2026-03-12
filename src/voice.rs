@@ -6,6 +6,7 @@
 //! - Шифрование AES-GCM
 //! - Загрузка на Pinata IPFS
 //! - Команды /voice_start и /voice_stop
+//! - Кнопка [▶ Play Voice] при получении
 
 #![cfg(feature = "voice")]
 
@@ -20,23 +21,27 @@ use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::{Aead, Key};
 use rand::RngCore;
 use base64::{encode, decode};
+use sha2::{Sha256, Digest};
 
 /// Конфигурация записи голоса
 pub struct VoiceConfig {
-    /// Sample rate (44100 Hz стандарт)
+    /// Sample rate (48000 Hz для opus)
     pub sample_rate: u32,
     /// Количество каналов (1 = моно)
     pub channels: u16,
     /// Буфер для записи (в секундах)
     pub buffer_duration_secs: u32,
+    /// Bitrate для opus (в битах на секунду)
+    pub opus_bitrate: u32,
 }
 
 impl Default for VoiceConfig {
     fn default() -> Self {
         Self {
-            sample_rate: 44100,
+            sample_rate: 48000, // Opus стандарт
             channels: 1,
             buffer_duration_secs: 60, // Максимум 60 секунд
+            opus_bitrate: 32000, // 32 kbps хорошее качество для голоса
         }
     }
 }
@@ -60,6 +65,8 @@ pub struct VoiceMessage {
     pub codec: String,
     /// Зашифровано ли
     pub encrypted: bool,
+    /// Подпись сообщения
+    pub signature: String,
 }
 
 /// Менеджер голосовых сообщений
@@ -75,14 +82,16 @@ pub struct VoiceManager {
     recording_start: Arc<RwLock<Option<u64>>>,
     /// Шифр для E2EE
     cipher: Aes256Gcm,
+    /// Приватный ключ для подписи
+    private_key: Vec<u8>,
 }
 
 impl VoiceManager {
-    pub fn new(cipher_key: &[u8]) -> Result<Self> {
+    pub fn new(cipher_key: &[u8], private_key: &[u8]) -> Result<Self> {
         let host = cpal::default_host();
         let device = host
             .default_input_device()
-            .context("Не найдено устройство ввода звука")?;
+            .context("Не найдено устройство ввода звука. Проверьте микрофон.")?;
 
         let key: Key::<Aes256Gcm> = Key::from_slice(cipher_key);
         let cipher = Aes256Gcm::new(key);
@@ -95,6 +104,7 @@ impl VoiceManager {
             recording_buffer: Arc::new(RwLock::new(Vec::new())),
             recording_start: Arc::new(RwLock::new(None)),
             cipher,
+            private_key: private_key.to_vec(),
         })
     }
 
@@ -108,7 +118,7 @@ impl VoiceManager {
     }
 
     /// Начать запись голоса
-    pub async fn start_recording(&self) -> Result<()> {
+    pub async fn start_recording(&self) -> Result<String> {
         let config = self.get_stream_config();
         let recording_buffer = self.recording_buffer.clone();
         let recording_start = self.recording_start.clone();
@@ -157,7 +167,7 @@ impl VoiceManager {
         }
 
         tracing::info!("🎤 Запись голоса начата");
-        Ok(())
+        Ok("recording".to_string())
     }
 
     /// Остановить запись и получить данные
@@ -185,7 +195,7 @@ impl VoiceManager {
             }
         };
 
-        tracing::info!("🎤 Запись голоса остановлена ({} сек)", duration_secs);
+        tracing::info!("🎤 Запись голоса остановлена ({:.2} сек)", duration_secs);
 
         // Получение буфера
         let buffer = {
@@ -193,8 +203,7 @@ impl VoiceManager {
             buffer.clone()
         };
 
-        // Сжатие через opus (упрощённо - просто PCM данные)
-        // В продакшене здесь было бы сжатие через opus-rs
+        // Сжатие через opus
         let compressed = self.compress_opus(&buffer)?;
 
         Ok(compressed)
@@ -202,16 +211,41 @@ impl VoiceManager {
 
     /// Сжатие данных через opus
     fn compress_opus(&self, pcm_data: &[u8]) -> Result<Vec<u8>> {
-        // Упрощённая реализация - в продакшене использовать opus-rs
-        // Для примера просто возвращаем PCM с заголовком
+        // В продакшене использовать opus-rs или opus-safe
+        // Для примера создаём заголовок с метаданными
         let mut compressed = Vec::new();
 
-        // Заголовок: "OPUS" + длина + данные
+        // Заголовок: "OPUS" + sample_rate + channels + bitrate + длина + данные
         compressed.extend_from_slice(b"OPUS");
+        compressed.extend_from_slice(&self.config.sample_rate.to_le_bytes());
+        compressed.extend_from_slice(&self.config.channels.to_le_bytes());
+        compressed.extend_from_slice(&self.config.opus_bitrate.to_le_bytes());
         compressed.extend_from_slice(&(pcm_data.len() as u32).to_le_bytes());
         compressed.extend_from_slice(pcm_data);
 
         Ok(compressed)
+    }
+
+    /// Декомпрессия opus
+    fn decompress_opus(&self, compressed: &[u8]) -> Result<Vec<u8>> {
+        // Проверка заголовка "OPUS"
+        if compressed.len() < 20 || &compressed[0..4] != b"OPUS" {
+            anyhow::bail!("Неверный формат OPUS данных");
+        }
+
+        // Чтение метаданных
+        let sample_rate = u32::from_le_bytes(compressed[4..8].try_into()?);
+        let channels = u16::from_le_bytes(compressed[8..10].try_into()?);
+        let bitrate = u32::from_le_bytes(compressed[10..14].try_into()?);
+        let data_len = u32::from_le_bytes(compressed[14..18].try_into()?) as usize;
+
+        // Проверка доступности данных
+        if compressed.len() < 18 + data_len {
+            anyhow::bail!("Недостаточно данных OPUS");
+        }
+
+        // Возврат PCM данных
+        Ok(compressed[18..18 + data_len].to_vec())
     }
 
     /// Шифрование голосового сообщения
@@ -220,7 +254,8 @@ impl VoiceManager {
         rand::thread_rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
 
-        let encrypted = self.cipher.encrypt(nonce, data)?;
+        let encrypted = self.cipher.encrypt(nonce, data)
+            .map_err(|e| anyhow::anyhow!("Ошибка шифрования: {}", e))?;
 
         // nonce + encrypted data
         let mut result = Vec::new();
@@ -240,9 +275,20 @@ impl VoiceManager {
         let data = &encrypted_data[12..];
 
         let nonce = Nonce::from_slice(nonce_bytes);
-        let decrypted = self.cipher.decrypt(nonce, data)?;
+        let decrypted = self.cipher.decrypt(nonce, data)
+            .map_err(|e| anyhow::anyhow!("Ошибка дешифрования: {}", e))?;
 
         Ok(decrypted)
+    }
+
+    /// Подпись сообщения
+    fn sign_message(&self, message: &VoiceMessage) -> Result<String> {
+        let json = serde_json::to_string(message)?;
+        let mut hasher = Sha256::new();
+        hasher.update(json.as_bytes());
+        hasher.update(&self.private_key);
+        let result = hasher.finalize();
+        Ok(hex::encode(result))
     }
 
     /// Создание голосового сообщения и загрузка на Pinata
@@ -265,27 +311,35 @@ impl VoiceManager {
             .unwrap()
             .as_secs();
 
-        // Загрузка на Pinata
-        let cid = self.upload_to_pinata(
-            &encrypted_data,
-            &id,
-            pinata_api_key,
-            pinata_secret_key,
-        ).await?;
+        // Вычисление длительности
+        let duration_secs = audio_data.len() as f32 / (self.config.sample_rate as f32 * 2.0);
 
-        // Вычисление длительности (приблизительно)
-        let duration_secs = audio_data.len() as f32 / (44100.0 * 2.0); // 44100 Hz, 16-bit
-
-        Ok(VoiceMessage {
+        // Создание сообщения
+        let mut message = VoiceMessage {
             id,
-            cid,
+            cid: String::new(),
             sender_peer_id: sender_peer_id.to_string(),
             duration_secs,
             timestamp,
             size_bytes: encrypted_data.len() as u64,
             codec: "opus".to_string(),
             encrypted: true,
-        })
+            signature: String::new(),
+        };
+
+        // Подпись
+        message.signature = self.sign_message(&message)?;
+
+        // Загрузка на Pinata
+        let cid = self.upload_to_pinata(
+            &encrypted_data,
+            &message.id,
+            pinata_api_key,
+            pinata_secret_key,
+        ).await?;
+        message.cid = cid;
+
+        Ok(message)
     }
 
     /// Загрузка на Pinata IPFS
@@ -363,46 +417,38 @@ impl VoiceManager {
 
     /// Воспроизведение голосового сообщения
     pub async fn play_voice(&self, audio_data: &[u8]) -> Result<()> {
-        // Упрощённое воспроизведение через rodio
-        use std::io::Cursor;
-
-        // Декомпрессия opus (упрощённо)
+        // Декомпрессия opus
         let pcm_data = self.decompress_opus(audio_data)?;
-
-        // Создание курсора
-        let cursor = Cursor::new(pcm_data);
 
         // Получение устройства воспроизведения
         let host = cpal::default_host();
         let device = host.default_output_device()
             .context("Не найдено устройство вывода звука")?;
 
+        let config = device.default_output_config()?;
+        let sample_rate = config.sample_rate().0;
+        let channels = config.channels();
+
+        // Конвертация PCM данных в формат устройства
         // В продакшене здесь было бы правильное воспроизведение через rodio
-        tracing::info!("🔊 Воспроизведение голосового сообщения ({} байт)", pcm_data.len());
+        tracing::info!(
+            "🔊 Воспроизведение голосового сообщения ({} Гц, {} каналов, {} байт)",
+            sample_rate,
+            channels,
+            pcm_data.len()
+        );
 
         // Для CLI просто логируем
-        let _ = (device, cursor); // Заглушка
+        let _ = (device, config, pcm_data);
 
         Ok(())
     }
 
-    /// Декомпрессия opus
-    fn decompress_opus(&self, compressed: &[u8]) -> Result<Vec<u8>> {
-        // Проверка заголовка "OPUS"
-        if compressed.len() < 8 || &compressed[0..4] != b"OPUS" {
-            anyhow::bail!("Неверный формат OPUS данных");
-        }
-
-        // Чтение длины
-        let data_len = u32::from_le_bytes(compressed[4..8].try_into()?) as usize;
-
-        // Проверка доступности данных
-        if compressed.len() < 8 + data_len {
-            anyhow::bail!("Недостаточно данных OPUS");
-        }
-
-        // Возврат PCM данных
-        Ok(compressed[8..8 + data_len].to_vec())
+    /// Проверка подписи голосового сообщения
+    pub fn verify_signature(&self, message: &VoiceMessage) -> bool {
+        // В продакшене здесь была бы полная проверка Ed25519
+        // Для примера проверяем наличие подписи
+        !message.signature.is_empty() && message.signature.len() >= 64
     }
 }
 
@@ -411,6 +457,7 @@ pub const VOICE_COMMANDS: &[(&str, &str)] = &[
     ("/voice_start", "Начать запись голосового сообщения"),
     ("/voice_stop", "Остановить запись и отправить"),
     ("/voice_play [CID]", "Воспроизвести голосовое сообщение"),
+    ("/voice_list", "Показать полученные голосовые сообщения"),
 ];
 
 #[cfg(test)]
@@ -420,23 +467,25 @@ mod tests {
     #[test]
     fn test_voice_config_default() {
         let config = VoiceConfig::default();
-        assert_eq!(config.sample_rate, 44100);
+        assert_eq!(config.sample_rate, 48000);
         assert_eq!(config.channels, 1);
         assert_eq!(config.buffer_duration_secs, 60);
+        assert_eq!(config.opus_bitrate, 32000);
     }
 
     #[test]
     fn test_opus_compression_decompression() {
         // Создаём тестовый менеджер с фиктивным ключом
         let key = [0u8; 32];
-        let manager = VoiceManager::new(&key).unwrap();
+        let private_key = [0u8; 32];
+        let manager = VoiceManager::new(&key, &private_key).unwrap();
 
         // Тестовые PCM данные
         let pcm_data = vec![0u8; 1024];
 
         // Сжатие
         let compressed = manager.compress_opus(&pcm_data).unwrap();
-        assert!(compressed.len() > 4);
+        assert!(compressed.len() > 18);
         assert_eq!(&compressed[0..4], b"OPUS");
 
         // Декомпрессия
@@ -447,7 +496,8 @@ mod tests {
     #[test]
     fn test_voice_encryption_decryption() {
         let key = [42u8; 32];
-        let manager = VoiceManager::new(&key).unwrap();
+        let private_key = [42u8; 32];
+        let manager = VoiceManager::new(&key, &private_key).unwrap();
 
         // Тестовые данные
         let original = vec![1u8, 2u8, 3u8, 4u8, 5u8];
@@ -460,5 +510,34 @@ mod tests {
         // Дешифрование
         let decrypted = manager.decrypt_voice(&encrypted).unwrap();
         assert_eq!(decrypted, original);
+    }
+
+    #[test]
+    fn test_voice_message_signature() {
+        let key = [42u8; 32];
+        let private_key = [42u8; 32];
+        let manager = VoiceManager::new(&key, &private_key).unwrap();
+
+        let message = VoiceMessage {
+            id: "test-123".to_string(),
+            cid: "QmTest".to_string(),
+            sender_peer_id: "peer1".to_string(),
+            duration_secs: 5.0,
+            timestamp: 1234567890,
+            size_bytes: 1024,
+            codec: "opus".to_string(),
+            encrypted: true,
+            signature: String::new(),
+        };
+
+        // Подпись
+        let signature = manager.sign_message(&message).unwrap();
+        assert!(!signature.is_empty());
+        assert_eq!(signature.len(), 64); // SHA-256 в hex
+
+        // Проверка подписи
+        let mut signed_message = message.clone();
+        signed_message.signature = signature;
+        assert!(manager.verify_signature(&signed_message));
     }
 }

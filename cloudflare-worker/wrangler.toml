@@ -1,0 +1,23 @@
+name = "liberty-reach-signaling"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# KV Namespace для хранения сигнальных данных
+# Создаётся через: wrangler kv:namespace create SIGNALS_KV
+[[kv_namespaces]]
+binding = "SIGNALS_KV"
+id = "YOUR_KV_NAMESPACE_ID"
+preview_id = "YOUR_PREVIEW_KV_NAMESPACE_ID"
+
+# Переменные окружения
+[vars]
+ALLOWED_PEERS = "" # Опционально: список разрешённых PeerID через запятую
+
+# Настройки для разработки
+[dev]
+port = 8787
+local_protocol = "http"
+
+# Build настройки
+[build]
+command = ""

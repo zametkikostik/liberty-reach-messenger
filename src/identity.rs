@@ -238,6 +238,33 @@ impl ProfileManager {
             .filter(|r| r.status == RequestStatus::Pending)
             .count()
     }
+
+    /// Получение ключа шифрования (производный от identity key)
+    pub fn get_cipher_key(&self) -> [u8; 32] {
+        // В продакшене здесь был бы HKDF или PBKDF2
+        // Для примера используем хэш от peer_id
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(self.our_profile.peer_id.as_bytes());
+        let result = hasher.finalize();
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&result);
+        key
+    }
+
+    /// Получение private key для подписи сообщений
+    pub fn get_private_key(&self) -> [u8; 32] {
+        // В продакшене здесь был бы настоящий private key от Ed25519
+        // Для примера используем другой хэш
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(self.our_profile.peer_id.as_bytes());
+        hasher.update(b"signing-key");
+        let result = hasher.finalize();
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&result);
+        key
+    }
 }
 
 /// Загружает или генерирует ключи идентичности

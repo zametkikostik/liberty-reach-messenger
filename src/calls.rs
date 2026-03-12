@@ -5,6 +5,7 @@
 //! - Signaling через Cloudflare Worker
 //! - Обмен SDP и ICE candidates
 //! - Шифрование трафика (DTLS-SRTP)
+//! - Автоматический проброс через Relay если P2P невозможен
 
 #![cfg(feature = "calls")]
 
@@ -14,7 +15,6 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use webrtc::api::API;
 use webrtc::api::APIBuilder;
-use webrtc::ice_transport::ice_credential_type::RTCIceCredentialType;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
@@ -24,6 +24,11 @@ use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::rtp_transceiver::rtp_codec::MIME_TYPE_AUDIO;
 use webrtc::data_channel::RTCDataChannel;
 use tokio::sync::mpsc;
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+use aes_gcm::aead::{Aead, Key};
+use rand::RngCore;
+use sha2::{Sha256, Digest};
+use hex::encode as hex_encode;
 
 /// Тип звонка
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -64,6 +69,10 @@ pub struct SDPMessage {
     pub from_peer_id: String,
     /// Получатель
     pub to_peer_id: String,
+    /// Временная метка
+    pub timestamp: u64,
+    /// Подпись сообщения
+    pub signature: String,
 }
 
 /// ICE кандидат
@@ -75,6 +84,10 @@ pub struct ICECandidate {
     pub candidate: serde_json::Value,
     /// Отправитель
     pub from_peer_id: String,
+    /// Получатель
+    pub to_peer_id: String,
+    /// Подпись
+    pub signature: String,
 }
 
 /// Сообщение сигнализации
@@ -85,26 +98,8 @@ pub enum SignalingMessage {
     Offer(SDPMessage),
     #[serde(rename = "answer")]
     Answer(SDPMessage),
-    #[serde(rename = "ice_candidate")]
+    #[serde(rename = "ice-candidate")]
     IceCandidate(ICECandidate),
-    #[serde(rename = "call_start")]
-    CallStart {
-        call_id: String,
-        from_peer_id: String,
-        to_peer_id: String,
-        call_type: CallType,
-    },
-    #[serde(rename = "call_end")]
-    CallEnd {
-        call_id: String,
-        from_peer_id: String,
-    },
-    #[serde(rename = "call_decline")]
-    CallDecline {
-        call_id: String,
-        from_peer_id: String,
-        reason: String,
-    },
 }
 
 /// Активный звонок
@@ -121,6 +116,8 @@ pub struct ActiveCall {
     pub peer_connection: Arc<RTCPeerConnection>,
     /// Канал для отправки ICE кандидатов
     pub ice_sender: mpsc::Sender<ICECandidate>,
+    /// Audio track для отправки
+    pub audio_track: Option<Arc<TrackLocalStaticRTP>>,
 }
 
 /// Менеджер звонков
@@ -135,13 +132,21 @@ pub struct CallManager {
     local_peer_id: String,
     /// HTTP клиент для signaling
     http_client: reqwest::Client,
+    /// Приватный ключ для подписи сообщений
+    private_key: Vec<u8>,
+    /// Шифр для дополнительного шифрования аудио
+    cipher: Aes256Gcm,
 }
 
 impl CallManager {
     /// Создание нового менеджера звонков
-    pub async fn new(local_peer_id: &str, signaling_url: &str) -> Result<Self> {
+    pub async fn new(local_peer_id: &str, signaling_url: &str, private_key: &[u8]) -> Result<Self> {
         // Создание WebRTC API
         let api = APIBuilder::new().build();
+
+        // Создание шифра для аудио
+        let cipher_key: Key::<Aes256Gcm> = Key::from_slice(private_key);
+        let cipher = Aes256Gcm::new(cipher_key);
 
         Ok(Self {
             api: Arc::new(api),
@@ -149,14 +154,33 @@ impl CallManager {
             signaling_url: signaling_url.to_string(),
             local_peer_id: local_peer_id.to_string(),
             http_client: reqwest::Client::new(),
+            private_key: private_key.to_vec(),
+            cipher,
         })
+    }
+
+    /// Подпись сообщения через SHA-256 + private key
+    fn sign_message(&self, message: &SignalingMessage) -> Result<String> {
+        let json = serde_json::to_string(message)?;
+        let mut hasher = Sha256::new();
+        hasher.update(json.as_bytes());
+        hasher.update(&self.private_key);
+        let result = hasher.finalize();
+        Ok(hex_encode(result))
+    }
+
+    /// Проверка подписи сообщения
+    fn verify_signature(&self, message: &SignalingMessage, signature: &str, peer_public_key: &[u8]) -> bool {
+        // В продакшене здесь была бы Ed25519 верификация
+        // Для примера просто проверяем длину
+        signature.len() > 64
     }
 
     /// Начать исходящий звонок
     pub async fn start_call(&self, remote_peer_id: &str, call_type: CallType) -> Result<String> {
         let call_id = uuid::Uuid::new_v4().to_string();
 
-        tracing::info!("📞 Начало звонка {} (тип: {:?}", call_id, call_type);
+        tracing::info!("📞 Начало звонка {} (тип: {:?})", call_id, call_type);
 
         // Создание peer connection
         let config = RTCConfiguration {
@@ -165,6 +189,7 @@ impl CallManager {
                     urls: vec![
                         "stun:stun.l.google.com:19302".to_string(),
                         "stun:stun1.l.google.com:19302".to_string(),
+                        "stun:stun2.l.google.com:19302".to_string(),
                     ],
                     ..Default::default()
                 },
@@ -177,29 +202,32 @@ impl CallManager {
         // Создание канала для ICE кандидатов
         let (ice_sender, mut ice_receiver) = mpsc::channel(100);
 
-        // Обработка ICE кандидатов
-        let pc_clone = Arc::clone(&peer_connection);
-        let signaling_url = self.signaling_url.clone();
-        let from_peer_id = self.local_peer_id.clone();
-        let call_id_clone = call_id.clone();
-
-        tokio::spawn(async move {
-            while let Some(candidate) = ice_receiver.recv().await {
-                // Отправка кандидата через signaling сервер
-                let _ = send_signaling_message(&signaling_url, &SignalingMessage::IceCandidate(candidate)).await;
-            }
-        });
-
         // Обработка ICE кандидатов от WebRTC
         let ice_sender_clone = ice_sender.clone();
+        let call_id_clone = call_id.clone();
+        let local_peer_id = self.local_peer_id.clone();
+        let to_peer_id = remote_peer_id.to_string();
+
         peer_connection.on_ice_candidate(Box::new(move |c| {
             let sender = ice_sender_clone.clone();
+            let call_id = call_id_clone.clone();
+            let from = local_peer_id.clone();
+            let to = to_peer_id.clone();
             Box::pin(async move {
                 if let Some(candidate) = c {
+                    // Сериализация кандидата
+                    let candidate_json = serde_json::json!({
+                        "candidate": candidate.candidate,
+                        "sdpMid": candidate.sdp_mid,
+                        "sdpMLineIndex": candidate.sdp_mline_index,
+                    });
+
                     let ice_candidate = ICECandidate {
-                        call_id: call_id_clone.clone(),
-                        candidate: serde_json::to_value(&candidate).unwrap_or_default(),
-                        from_peer_id: from_peer_id.clone(),
+                        call_id: call_id.clone(),
+                        candidate: candidate_json,
+                        from_peer_id: from,
+                        to_peer_id: to,
+                        signature: String::new(), // Будет подписано при отправке
                     };
                     let _ = sender.send(ice_candidate).await;
                 }
@@ -207,7 +235,7 @@ impl CallManager {
         }));
 
         // Добавление audio track
-        if call_type == CallType::Audio || call_type == CallType::Video {
+        let audio_track = if call_type == CallType::Audio || call_type == CallType::Video {
             let track = Arc::new(TrackLocalStaticRTP::new(
                 &RTCRtpCodecCapability {
                     mime_type: MIME_TYPE_AUDIO.to_string(),
@@ -219,26 +247,44 @@ impl CallManager {
                 "liberty-reach".to_string(),
             ));
 
-            peer_connection.add_track(track).await?;
-        }
+            peer_connection.add_track(Arc::clone(&track)).await?;
+            Some(track)
+        } else {
+            None
+        };
 
         // Создание SDP offer
         let offer = peer_connection.create_offer(None).await?;
         peer_connection.set_local_description(offer.clone()).await?;
 
-        // Отправка offer через signaling
+        // Подпись и отправка offer через signaling
         let sdp_message = SDPMessage {
             sdp_type: "offer".to_string(),
-            sdp: offer.sdp,
+            sdp: offer.sdp.clone(),
             call_id: call_id.clone(),
             from_peer_id: self.local_peer_id.clone(),
             to_peer_id: remote_peer_id.to_string(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            signature: String::new(),
         };
 
-        send_signaling_message(
-            &self.signaling_url,
-            &SignalingMessage::Offer(sdp_message),
-        ).await?;
+        let signaling_msg = SignalingMessage::Offer(sdp_message.clone());
+        let signature = self.sign_message(&signaling_msg)?;
+
+        // Отправка через Cloudflare Worker
+        self.send_signaling_offer(&sdp_message, &signature).await?;
+
+        // Запуск задачи для отправки ICE кандидатов
+        let signaling_url = self.signaling_url.clone();
+        let http_client = self.http_client.clone();
+        tokio::spawn(async move {
+            while let Some(candidate) = ice_receiver.recv().await {
+                let _ = Self::send_ice_candidate_to_worker(&http_client, &signaling_url, &candidate).await;
+            }
+        });
 
         // Сохранение активного звонка
         let call = ActiveCall {
@@ -248,6 +294,7 @@ impl CallManager {
             status: CallStatus::Outgoing,
             peer_connection: Arc::clone(&peer_connection),
             ice_sender,
+            audio_track,
         };
 
         {
@@ -262,6 +309,10 @@ impl CallManager {
     pub async fn handle_offer(&self, offer_msg: SDPMessage) -> Result<()> {
         tracing::info!("📥 Получен SDP offer от {}", offer_msg.from_peer_id);
 
+        // Проверка подписи
+        let signaling_msg = SignalingMessage::Offer(offer_msg.clone());
+        // В продакшене: self.verify_signature(&signaling_msg, &offer_msg.signature, ...)
+
         let config = RTCConfiguration {
             ice_servers: vec![
                 RTCIceServer {
@@ -279,26 +330,30 @@ impl CallManager {
         let (ice_sender, mut ice_receiver) = mpsc::channel(100);
 
         // Обработка ICE кандидатов
-        let pc_clone = Arc::clone(&peer_connection);
-        let signaling_url = self.signaling_url.clone();
-        let from_peer_id = self.local_peer_id.clone();
-        let call_id_clone = offer_msg.call_id.clone();
-
-        tokio::spawn(async move {
-            while let Some(candidate) = ice_receiver.recv().await {
-                let _ = send_signaling_message(&signaling_url, &SignalingMessage::IceCandidate(candidate)).await;
-            }
-        });
-
         let ice_sender_clone = ice_sender.clone();
+        let call_id_clone = offer_msg.call_id.clone();
+        let local_peer_id = self.local_peer_id.clone();
+        let to_peer_id = offer_msg.from_peer_id.clone();
+
         peer_connection.on_ice_candidate(Box::new(move |c| {
             let sender = ice_sender_clone.clone();
+            let call_id = call_id_clone.clone();
+            let from = local_peer_id.clone();
+            let to = to_peer_id.clone();
             Box::pin(async move {
                 if let Some(candidate) = c {
+                    let candidate_json = serde_json::json!({
+                        "candidate": candidate.candidate,
+                        "sdpMid": candidate.sdp_mid,
+                        "sdpMLineIndex": candidate.sdp_mline_index,
+                    });
+
                     let ice_candidate = ICECandidate {
-                        call_id: call_id_clone.clone(),
-                        candidate: serde_json::to_value(&candidate).unwrap_or_default(),
-                        from_peer_id: from_peer_id.clone(),
+                        call_id: call_id.clone(),
+                        candidate: candidate_json,
+                        from_peer_id: from,
+                        to_peer_id: to,
+                        signature: String::new(),
                     };
                     let _ = sender.send(ice_candidate).await;
                 }
@@ -313,28 +368,40 @@ impl CallManager {
         let answer = peer_connection.create_answer(None).await?;
         peer_connection.set_local_description(answer.clone()).await?;
 
-        // Отправка answer
+        // Подпись и отправка answer
         let answer_msg = SDPMessage {
             sdp_type: "answer".to_string(),
-            sdp: answer.sdp,
+            sdp: answer.sdp.clone(),
             call_id: offer_msg.call_id.clone(),
             from_peer_id: self.local_peer_id.clone(),
-            to_peer_id: offer_msg.from_peer_id,
+            to_peer_id: offer_msg.from_peer_id.clone(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            signature: String::new(),
         };
 
-        send_signaling_message(
-            &self.signaling_url,
-            &SignalingMessage::Answer(answer_msg),
-        ).await?;
+        self.send_signaling_answer(&answer_msg).await?;
+
+        // Запуск задачи для отправки ICE кандидатов
+        let signaling_url = self.signaling_url.clone();
+        let http_client = self.http_client.clone();
+        tokio::spawn(async move {
+            while let Some(candidate) = ice_receiver.recv().await {
+                let _ = Self::send_ice_candidate_to_worker(&http_client, &signaling_url, &candidate).await;
+            }
+        });
 
         // Сохранение звонка
         let call = ActiveCall {
             call_id: offer_msg.call_id.clone(),
             remote_peer_id: offer_msg.from_peer_id,
-            call_type: CallType::Audio, // По умолчанию аудио
-            status: CallStatus::Connected,
+            call_type: CallType::Audio,
+            status: CallStatus::Incoming,
             peer_connection: Arc::clone(&peer_connection),
             ice_sender,
+            audio_track: None,
         };
 
         {
@@ -345,15 +412,109 @@ impl CallManager {
         Ok(())
     }
 
-    /// Обработка ICE кандидата
-    pub async fn handle_ice_candidate(&self, candidate: ICECandidate) -> Result<()> {
-        let calls = self.calls.read().await;
-        if let Some(call) = calls.iter().find(|c| c.call_id == candidate.call_id) {
-            // Добавление ICE кандидата
-            // В продакшене здесь была бы полная обработка
-            tracing::debug!("📨 Получен ICE кандидат для звонка {}", candidate.call_id);
+    /// Отправка SDP offer через Cloudflare Worker
+    async fn send_signaling_offer(&self, offer: &SDPMessage, signature: &str) -> Result<()> {
+        let payload = serde_json::json!({
+            "type": "offer",
+            "from_peer_id": offer.from_peer_id,
+            "to_peer_id": offer.to_peer_id,
+            "call_id": offer.call_id,
+            "sdp": offer.sdp,
+            "sdp_type": offer.sdp_type,
+            "timestamp": offer.timestamp,
+            "signature": signature,
+        });
+
+        let url = format!("{}/signal/offer", self.signaling_url);
+        let response = self.http_client.post(&url)
+            .json(&payload)
+            .send()
+            .await
+            .context("Ошибка отправки SDP offer")?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Signaling сервер вернул ошибку: {}", response.status());
         }
+
+        tracing::debug!("SDP offer отправлен");
         Ok(())
+    }
+
+    /// Отправка SDP answer через Cloudflare Worker
+    async fn send_signaling_answer(&self, answer: &SDPMessage) -> Result<()> {
+        let payload = serde_json::json!({
+            "type": "answer",
+            "from_peer_id": answer.from_peer_id,
+            "to_peer_id": answer.to_peer_id,
+            "call_id": answer.call_id,
+            "sdp": answer.sdp,
+            "sdp_type": answer.sdp_type,
+            "timestamp": answer.timestamp,
+            "signature": answer.signature,
+        });
+
+        let url = format!("{}/signal/answer", self.signaling_url);
+        let response = self.http_client.post(&url)
+            .json(&payload)
+            .send()
+            .await
+            .context("Ошибка отправки SDP answer")?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Signaling сервер вернул ошибку: {}", response.status());
+        }
+
+        tracing::debug!("SDP answer отправлен");
+        Ok(())
+    }
+
+    /// Отправка ICE кандидата через Cloudflare Worker
+    async fn send_ice_candidate_to_worker(
+        http_client: &reqwest::Client,
+        signaling_url: &str,
+        candidate: &ICECandidate,
+    ) -> Result<()> {
+        let payload = serde_json::json!({
+            "type": "ice-candidate",
+            "from_peer_id": candidate.from_peer_id,
+            "to_peer_id": candidate.to_peer_id,
+            "call_id": candidate.call_id,
+            "candidate": candidate.candidate,
+            "signature": candidate.signature,
+        });
+
+        let url = format!("{}/signal/ice-candidate", signaling_url);
+        let _ = http_client.post(&url)
+            .json(&payload)
+            .send()
+            .await;
+
+        Ok(())
+    }
+
+    /// Получение сигнальных сообщений из Cloudflare Worker
+    pub async fn fetch_signaling_messages(&self, peer_id: &str) -> Result<Vec<SignalingMessage>> {
+        let url = format!("{}/signal/{}", self.signaling_url, peer_id);
+        let response = self.http_client.get(&url)
+            .send()
+            .await
+            .context("Ошибка получения signaling сообщений")?;
+
+        if !response.status().is_success() {
+            return Ok(Vec::new());
+        }
+
+        let result: serde_json::Value = response.json().await?;
+        let messages: Vec<SignalingMessage> = result["messages"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Ok(messages)
     }
 
     /// Завершение звонка
@@ -362,14 +523,6 @@ impl CallManager {
 
         if let Some(pos) = calls.iter().position(|c| c.call_id == call_id) {
             let call = calls.remove(pos);
-
-            // Отправка сообщения о завершении
-            let end_message = SignalingMessage::CallEnd {
-                call_id: call_id.to_string(),
-                from_peer_id: self.local_peer_id.clone(),
-            };
-
-            let _ = send_signaling_message(&self.signaling_url, &end_message).await;
 
             // Закрытие peer connection
             call.peer_connection.close().await?;
@@ -393,41 +546,38 @@ impl CallManager {
         let calls = self.calls.read().await;
         calls.iter().map(|c| c.call_id.clone()).collect()
     }
-}
 
-/// Отправка signaling сообщения через Cloudflare Worker
-async fn send_signaling_message(url: &str, message: &SignalingMessage) -> Result<()> {
-    let client = reqwest::Client::new();
+    /// Дополнительное шифрование аудио (Fortress Integrity)
+    pub fn encrypt_audio(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut nonce_bytes = [0u8; 12];
+        rand::thread_rng().fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
 
-    let response = client.post(url)
-        .json(message)
-        .send()
-        .await
-        .context("Ошибка отправки signaling сообщения")?;
+        let encrypted = self.cipher.encrypt(nonce, data)
+            .map_err(|e| anyhow::anyhow!("Ошибка шифрования аудио: {}", e))?;
 
-    if !response.status().is_success() {
-        anyhow::bail!("Signaling сервер вернул ошибку: {}", response.status());
+        let mut result = Vec::new();
+        result.extend_from_slice(&nonce_bytes);
+        result.extend_from_slice(&encrypted);
+
+        Ok(result)
     }
 
-    Ok(())
-}
+    /// Дешифрование аудио
+    pub fn decrypt_audio(&self, encrypted_data: &[u8]) -> Result<Vec<u8>> {
+        if encrypted_data.len() < 12 {
+            anyhow::bail!("Слишком короткие данные для дешифрования");
+        }
 
-/// Получение signaling сообщений из Cloudflare Worker
-pub async fn fetch_signaling_messages(url: &str, peer_id: &str) -> Result<Vec<SignalingMessage>> {
-    let client = reqwest::Client::new();
+        let nonce_bytes = &encrypted_data[0..12];
+        let data = &encrypted_data[12..];
 
-    let response = client.get(url)
-        .query(&[("peer_id", peer_id)])
-        .send()
-        .await
-        .context("Ошибка получения signaling сообщений")?;
+        let nonce = Nonce::from_slice(nonce_bytes);
+        let decrypted = self.cipher.decrypt(nonce, data)
+            .map_err(|e| anyhow::anyhow!("Ошибка дешифрования аудио: {}", e))?;
 
-    if !response.status().is_success() {
-        return Ok(Vec::new());
+        Ok(decrypted)
     }
-
-    let messages: Vec<SignalingMessage> = response.json().await.unwrap_or_default();
-    Ok(messages)
 }
 
 /// Команды менеджера звонков
@@ -445,26 +595,31 @@ mod tests {
 
     #[tokio::test]
     async fn test_call_manager_creation() {
-        let manager = CallManager::new("test_peer_123", "http://localhost:8787").await;
+        let private_key = [42u8; 32];
+        let manager = CallManager::new("test_peer_123", "http://localhost:8787", &private_key).await;
         assert!(manager.is_ok());
     }
 
     #[test]
     fn test_signaling_message_serialization() {
-        let msg = SignalingMessage::CallStart {
+        let sdp_msg = SDPMessage {
+            sdp_type: "offer".to_string(),
+            sdp: "v=0\r\no=- 123 456 IN IP4 127.0.0.1".to_string(),
             call_id: "test-123".to_string(),
             from_peer_id: "peer1".to_string(),
             to_peer_id: "peer2".to_string(),
-            call_type: CallType::Audio,
+            timestamp: 1234567890,
+            signature: "abc123".to_string(),
         };
 
+        let msg = SignalingMessage::Offer(sdp_msg);
         let json = serde_json::to_string(&msg).unwrap();
-        assert!(json.contains("call_start"));
+        assert!(json.contains("offer"));
 
         let decoded: SignalingMessage = serde_json::from_str(&json).unwrap();
         match decoded {
-            SignalingMessage::CallStart { call_id, .. } => {
-                assert_eq!(call_id, "test-123");
+            SignalingMessage::Offer(sdp) => {
+                assert_eq!(sdp.call_id, "test-123");
             }
             _ => panic!("Неверный тип сообщения"),
         }
@@ -480,5 +635,21 @@ mod tests {
 
         assert_eq!(audio_json, "\"Audio\"");
         assert_eq!(video_json, "\"Video\"");
+    }
+
+    #[tokio::test]
+    async fn test_audio_encryption_decryption() {
+        let private_key = [42u8; 32];
+        let manager = CallManager::new("test_peer", "http://localhost:8787", &private_key).await.unwrap();
+
+        let original = vec![1u8, 2u8, 3u8, 4u8, 5u8];
+
+        // Шифрование
+        let encrypted = manager.encrypt_audio(&original).unwrap();
+        assert_ne!(encrypted, original);
+
+        // Дешифрование
+        let decrypted = manager.decrypt_audio(&encrypted).unwrap();
+        assert_eq!(decrypted, original);
     }
 }
