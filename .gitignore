@@ -1,0 +1,32 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Личные ключи (НИКОГДА не выкладывай в сеть!)
+identity.key
+
+# Переменные окружения с секретами
+.env
+.env.local
+.env.*.local
+
+# Базы данных и кэш
+liberty_data/
+liberty_data2/
+liberty_data3/
+*.db
+*.sqlite
+
+# Docker & OS
+.DS_Store
+*.log
+
+# Временные файлы
+Running
+Using
+{}
+*~
+
+# Docker images hashes
+[0-9a-f]{12}

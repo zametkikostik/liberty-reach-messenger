@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - liberty_network
+    ports:
+      - "11434:11434"
+
+  messenger_core:
+    build: .
+    container_name: messenger_core
+    depends_on:
+      - ollama
+    networks:
+      - liberty_network
+    ports:
+      - "3000:3000"
+      - "4001:4001/tcp"
+      - "4001:4001/udp"
+    volumes:
+      - .:/app
+      - ./liberty_data:/app/data
+
+networks:
+  liberty_network:
+    driver: bridge
+
+volumes:
+  ollama_data:
