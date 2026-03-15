@@ -4,6 +4,7 @@
 mod admin_handlers;
 mod ai_guard;
 mod chat_types;
+mod config;
 mod files;
 mod geo;
 mod hybrid_moderation;

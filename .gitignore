@@ -1,32 +1,145 @@
-# Rust
-target/
-**/*.rs.bk
-Cargo.lock
+# ============================================================================
+# LIBERTY REACH - COMPREHENSIVE .gitignore
+# Flutter + Rust + Security
+# ============================================================================
 
-# Личные ключи (НИКОГДА не выкладывай в сеть!)
-identity.key
-
-# Переменные окружения с секретами
+# ============================================================================
+# SENSITIVE FILES (NEVER COMMIT)
+# ============================================================================
+# Environment files with secrets
 .env
 .env.local
+.env.development
+.env.production
 .env.*.local
 
-# Базы данных и кэш
+# Keystore files (Android signing)
+*.jks
+*.keystore
+upload-keystore.jks
+release-keystore.jks
+android/app/*.jks
+android/app/*.keystore
+
+# Key properties (Android signing credentials)
+android/key.properties
+android/app/key.properties
+**/key.properties
+
+# Base64 encoded secrets
+*.base64
+*.b64
+*base64*.txt
+*b64*.txt
+
+# Identity and encryption keys
+identity.key
+*.pem
+*.p12
+*.pfx
+secret_key*
+encryption_key*
+
+# ============================================================================
+# RUST
+# ============================================================================
+# Build artifacts
+target/
+**/target/
+
+# Cargo lock (optional - commit for binaries)
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ============================================================================
+# FLUTTER / DART
+# ============================================================================
+# Build outputs
+build/
+**/build/
+
+# Dart tool
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub-preload/
+
+# IDE
+.idea/
+*.iml
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/**/GeneratedPluginRegistrant.kt
+
+# Web
+**/web/manifest.json
+
+# ============================================================================
+# DOCKER
+# ============================================================================
+# Build artifacts
+*.log
+docker-compose.override.yml
+
+# Volumes
 liberty_data/
 liberty_data2/
 liberty_data3/
+
+# ============================================================================
+# DATABASES
+# ============================================================================
 *.db
 *.sqlite
+*.sqlite3
 
-# Docker & OS
+# ============================================================================
+# OS FILES
+# ============================================================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+*.tmp
+*.temp
 *.log
+*.pid
+*.seed
+*.lock
 
-# Временные файлы
-Running
-Using
-{}
-*~
+# Qwen Code
+.qwen/
 
-# Docker images hashes
-[0-9a-f]{12}
+# ============================================================================
+# VERIFICATION - FILES THAT SHOULD NEVER BE COMMITTED
+# ============================================================================
+# Run this command to check:
+# git ls-files | grep -E "(jks|keystore|key.properties|base64|\.env\.local)"
+# ============================================================================

@@ -1,0 +1,138 @@
+// Liberty Reach - Android App Build Configuration
+// Hybrid CI/CD: Local (.jks) + GitHub (BASE64)
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+// ============================================================================
+// HYBRID SIGNING CONFIGURATION
+// ============================================================================
+// Priority: 
+// 1. Environment variables (GitHub Actions CI/CD)
+// 2. key.properties file (Local development)
+// ============================================================================
+
+def keystorePropertiesFile = rootProject.file('key.properties')
+def keystoreProperties = new Properties()
+
+// Check if running in CI/CD (GitHub Actions)
+def isCI = System.getenv('CI') == 'true'
+def storeFileEnv = System.getenv('STORE_FILE')
+def storePasswordEnv = System.getenv('STORE_PASSWORD')
+def keyAliasEnv = System.getenv('KEY_ALIAS')
+def keyPasswordEnv = System.getenv('KEY_PASSWORD')
+
+if (isCI && storeFileEnv) {
+    // GitHub Actions: Use environment variables
+    println "🚀 Building in CI/CD mode (GitHub Actions)"
+    keystoreProperties['storeFile'] = storeFileEnv
+    keystoreProperties['storePassword'] = storePasswordEnv
+    keystoreProperties['keyAlias'] = keyAliasEnv
+    keystoreProperties['keyPassword'] = keyPasswordEnv
+} else if (keystorePropertiesFile.exists()) {
+    // Local: Use key.properties file
+    println "💻 Building in Local mode (key.properties)"
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+} else {
+    // Fallback: No signing config
+    println "⚠️  No signing config found, building unsigned"
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
+android {
+    namespace "io.libertyreach.messenger"
+    compileSdkVersion 34
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "io.libertyreach.messenger"
+        minSdkVersion 21
+        targetSdkVersion 34
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        multiDexEnabled true
+    }
+
+    // Signing Configuration
+    signingConfigs {
+        release {
+            if (keystoreProperties['storeFile']) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (keystoreProperties['storeFile']) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    // Build Features
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Environment Variables for Flutter
+    defaultConfig {
+        buildConfigField "String", "RPC_URL", "\"${System.getenv('RPC_URL') ?: 'https://polygon-rpc.com'}\""
+        buildConfigField "String", "OPENROUTER_API_KEY", "\"${System.getenv('OPENROUTER_API_KEY') ?: ''}\""
+        buildConfigField "String", "SECRET_LOVE_KEY", "\"${System.getenv('SECRET_LOVE_KEY') ?: 'liberty_reach_default_salt'}\""
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'androidx.multidex:multidex:2.0.1'
+}
