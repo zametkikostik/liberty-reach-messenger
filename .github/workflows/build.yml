@@ -152,8 +152,8 @@ jobs:
         with:
           name: liberty-reach-apks
           path: |
-            build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/bundle/release/*.aab
+            ${{ github.workspace }}/mobile/build/app/outputs/flutter-apk/*.apk
+            ${{ github.workspace }}/mobile/build/app/outputs/bundle/release/*.aab
           retention-days: 30
 
       # 11. Create Release (if tagged)
@@ -162,8 +162,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/bundle/release/*.aab
+            ${{ github.workspace }}/mobile/build/app/outputs/flutter-apk/*.apk
+            ${{ github.workspace }}/mobile/build/app/outputs/bundle/release/*.aab
           generate_release_notes: true
           draft: false
 
