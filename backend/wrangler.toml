@@ -6,12 +6,6 @@ compatibility_date = "2024-01-01"
 [build]
 command = "cargo install -q worker-build && worker-build --release"
 
-# D1 Database Binding
-[[d1_databases]]
-binding = "DB"
-database_name = "liberty-db"
-database_id = "YOUR_DATABASE_ID"  # Replace after creating with wrangler d1 create
-
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
@@ -20,10 +14,3 @@ ENVIRONMENT = "production"
 [dev]
 port = 8787
 local_protocol = "http"
-
-# Production environment overrides
-[env.production]
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "liberty-db"
-# database_id will be set after production deployment

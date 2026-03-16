@@ -1,7 +1,16 @@
 # Cloudflare D1 Database Setup Guide
 ## "A Love Story" - Liberty Reach Backend
 
-This guide covers setting up Cloudflare D1 for persistent user storage.
+**Status:** Database created ✅, Schema applied ✅, Worker integration pending.
+
+---
+
+## ✅ Database Created
+
+**Database Name:** `liberty-db`  
+**Database ID:** `7713033b-1f5c-4f2c-9123-b1c989869035`  
+**Region:** EEUR (Eastern Europe)  
+**Schema:** Applied successfully
 
 ---
 
@@ -29,249 +38,98 @@ INSERT OR IGNORE INTO schema_version (version) VALUES (1);
 
 ---
 
-## 🔧 Wrangler Configuration
+## 🔧 Current Status
 
-Location: `backend/wrangler.toml`
+The D1 database is ready and schema is applied. However, the Worker code currently uses `worker = "0.7"` which has limited D1 support via the Rust API.
 
-```toml
-name = "a-love-story"
-main = "build/index.js"
-compatibility_date = "2024-01-01"
+### What's Working Now:
+- ✅ Database created in Cloudflare
+- ✅ Schema applied (users table ready)
+- ✅ Worker deployed without D1 integration
+- ✅ Registration and verification endpoints functional
 
-[build]
-command = "cargo install -q worker-build && worker-build --release"
-
-# D1 Database Binding
-[[d1_databases]]
-binding = "DB"
-database_name = "liberty-db"
-database_id = "YOUR_DATABASE_ID"
-
-[vars]
-ENVIRONMENT = "production"
-
-[dev]
-port = 8787
-local_protocol = "http"
-```
+### What's Pending:
+- ⏳ Full D1 integration in Rust Worker (requires wasm-bindgen JS interop)
+- ⏳ Persistent user storage across Worker restarts
 
 ---
 
-## 🚀 CLI Setup Commands
+## 🚀 CLI Commands Reference
 
-### Step 1: Create D1 Database
-
-```bash
-cd /home/kostik/Рабочий стол/папка для программирования/liberty-sovereign/backend
-
-# Create the database in Cloudflare
-npx wrangler d1 create liberty-db
-```
-
-**Expected Output:**
-```
-✅ Successfully created database 'liberty-db' in account YOUR_ACCOUNT
-Database ID: abc123def456...
-```
-
-**Important:** Copy the `database_id` from the output!
-
----
-
-### Step 2: Update wrangler.toml
-
-Replace `YOUR_DATABASE_ID` with the actual ID from Step 1:
+### Query Database
 
 ```bash
-# Edit wrangler.toml and set:
-database_id = "abc123def456..."  # Your actual database ID
+# Count users
+npx wrangler d1 execute liberty-db --remote --command="SELECT COUNT(*) FROM users;"
+
+# List all users
+npx wrangler d1 execute liberty-db --remote --command="SELECT * FROM users LIMIT 10;"
 ```
 
----
-
-### Step 3: Execute Schema (Local Development)
+### Export/Import
 
 ```bash
-# Initialize local D1 database with schema
-npx wrangler d1 execute liberty-db --local --file=schema.sql
-```
+# Export schema and data
+npx wrangler d1 export liberty-db --output=backup.sql
 
-**Expected Output:**
-```
-✅ Executed schema.sql on liberty-db (local)
-```
-
----
-
-### Step 4: Execute Schema (Production)
-
-```bash
-# Apply schema to production database
+# Import from SQL file
 npx wrangler d1 execute liberty-db --remote --file=schema.sql
 ```
 
-**Expected Output:**
-```
-✅ Executed schema.sql on liberty-db (remote)
-```
-
----
-
-### Step 5: Deploy Worker
-
-```bash
-# Deploy with D1 binding (use VPN if needed)
-https_proxy=http://127.0.0.1:10809 http_proxy=http://127.0.0.1:10809 npx wrangler deploy
-```
-
----
-
-## 🧪 Testing & Verification
-
-### Check Database Status
-
-```bash
-# Query user count
-npx wrangler d1 execute liberty-db --remote --command="SELECT COUNT(*) FROM users;"
-```
-
-### Test Registration Endpoint
-
-```bash
-# Generate a test key and register
-curl -X POST https://a-love-story.zametkikostik.workers.dev/register \
-  -H "Content-Type: application/json" \
-  -d '{"public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}'
-
-# Expected response with D1:
-# {"user_id":"66687aad...","short_user_id":"66687aad...","success":true,"message":"User registered in database"}
-```
-
-### Check Health Endpoint
-
-```bash
-curl https://a-love-story.zametkikostik.workers.dev/health
-
-# Expected response:
-# {"status":"ok","service":"A Love Story","database":"connected"}
-```
-
-### Check DB Status Endpoint
-
-```bash
-curl https://a-love-story.zametkikostik.workers.dev/db/status
-
-# Expected response:
-# {"status":"connected","user_count":0}
-```
-
----
-
-## 📊 Useful D1 Commands
+### Database Info
 
 ```bash
 # List all databases
 npx wrangler d1 list
 
-# View database info
+# Get database info
 npx wrangler d1 info liberty-db
-
-# Execute SQL query
-npx wrangler d1 execute liberty-db --remote --command="SELECT * FROM users LIMIT 10;"
-
-# Export database (backup)
-npx wrangler d1 export liberty-db --output=backup.sql
-
-# Import database
-npx wrangler d1 execute liberty-db --remote --file=backup.sql
 ```
 
 ---
 
-## 🔍 Troubleshooting
+## 📊 Current Worker Endpoints
 
-### Error: "D1 binding not available"
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/register` | POST | Register user (stateless) |
+| `/verify` | POST | Verify Ed25519 signature |
 
-**Cause:** Database binding not configured in wrangler.toml
-
-**Solution:**
-1. Verify `[[d1_databases]]` section exists in wrangler.toml
-2. Ensure `binding = "DB"` matches `env.d1("DB")` in Rust code
-3. Redeploy: `npx wrangler deploy`
-
----
-
-### Error: "Database does not exist"
-
-**Cause:** Database not created or wrong database_id
-
-**Solution:**
+**Test:**
 ```bash
-# Create database
-npx wrangler d1 create liberty-db
-
-# Update database_id in wrangler.toml
-# Redeploy
-npx wrangler deploy
+curl https://a-love-story.zametkikostik.workers.dev/health
+# {"status":"ok","service":"A Love Story"}
 ```
 
 ---
 
-### Error: "Table does not exist"
+## 📈 Future Integration Steps
 
-**Cause:** Schema not applied
+When worker-rs adds full D1 support or when implementing via wasm-bindgen:
 
-**Solution:**
-```bash
-# Apply schema
-npx wrangler d1 execute liberty-db --remote --file=schema.sql
-```
+1. **Add D1 binding to wrangler.toml:**
+   ```toml
+   [[d1_databases]]
+   binding = "DB"
+   database_name = "liberty-db"
+   database_id = "7713033b-1f5c-4f2c-9123-b1c989869035"
+   ```
 
----
+2. **Add WASM dependencies to Cargo.toml:**
+   ```toml
+   [dependencies]
+   wasm-bindgen = "0.2"
+   wasm-bindgen-futures = "0.4"
+   js-sys = "0.3"
+   ```
 
-### Error: "Constraint violation" on INSERT
-
-**Cause:** User already exists (PRIMARY KEY collision)
-
-**Solution:** This is expected behavior! The Rust code handles this by:
-1. Checking if user exists before INSERT
-2. Returning `success: true` with message "User already exists"
-
----
-
-## 📁 File Structure
-
-```
-backend/
-├── src/
-│   └── lib.rs              # Rust code with D1 integration
-├── schema.sql              # SQL schema for D1
-├── wrangler.toml           # Wrangler config with D1 binding
-└── Cargo.toml              # Rust dependencies
-```
-
----
-
-## 🔐 Security Notes
-
-1. **Input Validation:** All public keys are validated with `ed25519-dalek` before storage
-2. **Idempotent Registration:** Duplicate registrations return success without error
-3. **SQL Injection Prevention:** Using parameterized queries with `?1`, `?2` placeholders
-4. **Error Handling:** Database errors are logged but don't break registration flow
-
----
-
-## 📈 Next Steps
-
-1. **Add User Metadata:** Extend schema with `last_seen`, `device_info`
-2. **Message Storage:** Create `messages` table for encrypted message relay
-3. **Contact Discovery:** Add `contacts` table for user relationships
-4. **Rate Limiting:** Use D1 + KV for request rate limiting per user
+3. **Update src/lib.rs** to use D1 via JS interop
 
 ---
 
 ## 📚 Resources
 
 - [Cloudflare D1 Documentation](https://developers.cloudflare.com/d1/)
-- [Worker-rust D1 Examples](https://github.com/cloudflare/workers-rs/tree/main/examples/d1)
+- [worker-rs GitHub](https://github.com/cloudflare/workers-rs)
 - [Wrangler CLI Reference](https://developers.cloudflare.com/workers/wrangler/commands/)
