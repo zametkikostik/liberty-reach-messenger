@@ -20,26 +20,26 @@ jobs:
   build-flutter:
     name: Build Flutter APK
     runs-on: ubuntu-latest
-    
+
     # All steps run in mobile/ directory by default
     defaults:
       run:
         working-directory: mobile
-    
+
     steps:
       # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       # 2. Setup Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-      
+
       # 3. Setup Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -47,7 +47,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
-      
+
       # 4. Decode Keystore (BASE64 from secrets)
       # Saves to mobile/android/app/upload-keystore.jks
       - name: Decode Keystore
@@ -56,9 +56,9 @@ jobs:
         run: |
           echo "🔐 Decoding keystore from BASE64..."
           mkdir -p android/app
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          echo "${KEYSTORE_BASE64}" | base64 --decode > android/app/upload-keystore.jks
           ls -la android/app/upload-keystore.jks
-      
+
       # 5. Export Environment Variables
       - name: Setup Environment Variables
         run: |
@@ -70,7 +70,7 @@ jobs:
           echo "RPC_URL=${{ secrets.RPC_URL }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "SECRET_LOVE_KEY=${{ secrets.SECRET_LOVE_KEY }}" >> $GITHUB_ENV
-      
+
       # 6. Create key.properties (for Gradle)
       # Creates mobile/android/key.properties
       - name: Create key.properties
@@ -82,19 +82,19 @@ jobs:
           storeFile=upload-keystore.jks
           EOF
           cat android/key.properties
-      
+
       # 7. Build Flutter APK
       - name: Build Release APK
         run: |
           flutter clean
           flutter pub get
           flutter build apk --release --split-per-abi
-      
+
       # 8. Build App Bundle
       - name: Build App Bundle
         run: |
           flutter build appbundle --release
-      
+
       # 9. Upload Artifacts
       # APKs are in mobile/build/app/outputs/flutter-apk/
       - name: Upload APK Artifacts
@@ -105,7 +105,7 @@ jobs:
             build/app/outputs/flutter-apk/*.apk
             build/app/outputs/bundle/release/*.aab
           retention-days: 30
-      
+
       # 10. Create Release (if tagged)
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -116,18 +116,18 @@ jobs:
             build/app/outputs/bundle/release/*.aab
           generate_release_notes: true
           draft: false
-  
+
   # ============================================================================
   # Rust Backend Build
   # ============================================================================
   build-rust:
     name: Build Rust Backend
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -135,7 +135,7 @@ jobs:
           version: ${{ env.RUST_VERSION }}
           override: true
           components: rustfmt, clippy
-      
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -144,7 +144,7 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Setup Environment Variables
         run: |
           echo "RPC_URL=${{ secrets.RPC_URL }}" >> $GITHUB_ENV
@@ -152,20 +152,20 @@ jobs:
           echo "SECRET_LOVE_KEY=${{ secrets.SECRET_LOVE_KEY }}" >> $GITHUB_ENV
           echo "PINATA_API_KEY=${{ secrets.PINATA_API_KEY }}" >> $GITHUB_ENV
           echo "PINATA_SECRET_KEY=${{ secrets.PINATA_SECRET_KEY }}" >> $GITHUB_ENV
-      
+
       - name: Build Release
         run: cargo build --release
-      
+
       - name: Run Tests
         run: cargo test --release
-      
+
       - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
           name: liberty-sovereign-backend
           path: target/release/liberty-sovereign
           retention-days: 30
-  
+
   # ============================================================================
   # Docker Build
   # ============================================================================
@@ -173,21 +173,21 @@ jobs:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: [build-rust]
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      
+
       - name: Build and Push
         uses: docker/build-push-action@v5
         with:
