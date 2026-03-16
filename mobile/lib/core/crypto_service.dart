@@ -23,9 +23,8 @@ class CryptoService {
     // Генерируем новую пару ключей
     final keyPair = await _algorithm.newKeyPair();
     
-    // Получаем публичный ключ через publicKey getter
-    final publicKey = keyPair.publicKey;
-    final publicKeyBytes = publicKey.bytes;
+    // Получаем байты публичного ключа через bytes getter
+    final publicKeyBytes = keyPair.bytes;
     final publicKeyBase64 = base64Encode(publicKeyBytes);
     
     // Получаем приватный ключ
