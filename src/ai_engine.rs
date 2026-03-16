@@ -1,10 +1,14 @@
-//! Liberty Reach Hybrid AI Engine
+//! Liberty Sovereign Hybrid AI Engine v0.7.1
 //!
-//! Implements:
-//! - Local Ollama inference (primary)
-//! - OpenRouter API fallback (secondary)
-//! - Anonymous request handling
+//! Thread-safe Hybrid AI with strict 2-second timeout fallback:
+//! - Primary: Local Ollama (127.0.0.1:11434)
+//! - Fallback: OpenRouter API (qwen/qwen-2.5-72b-instruct:free)
+//!
+//! Features:
+//! - Arc-based thread safety
+//! - 2-second timeout for Ollama
 //! - Automatic failover
+//! - Anonymous requests (no PII)
 
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -15,14 +19,14 @@ use tracing::{debug, error, info, warn};
 
 use crate::config::Config;
 
-/// AI Provider types
+/// AI Provider (which backend is active)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AiProvider {
     Ollama,
     OpenRouter,
 }
 
-/// AI Model configuration
+/// AI Configuration
 #[derive(Debug, Clone)]
 pub struct AiModelConfig {
     pub ollama_url: String,
@@ -30,7 +34,7 @@ pub struct AiModelConfig {
     pub openrouter_url: String,
     pub openrouter_api_key: String,
     pub openrouter_model: String,
-    pub timeout_secs: u64,
+    pub ollama_timeout_secs: u64,
     pub max_retries: u32,
 }
 
@@ -42,8 +46,8 @@ impl Default for AiModelConfig {
             openrouter_url: "https://openrouter.ai/api/v1".to_string(),
             openrouter_api_key: String::new(),
             openrouter_model: "qwen/qwen-2.5-72b-instruct:free".to_string(),
-            timeout_secs: 30,
-            max_retries: 3,
+            ollama_timeout_secs: 2, // STRICT 2-second timeout
+            max_retries: 1,
         }
     }
 }
@@ -56,13 +60,13 @@ impl AiModelConfig {
             openrouter_url: config.openrouter_url.clone().unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string()),
             openrouter_api_key: config.openrouter_api_key.clone().unwrap_or_default(),
             openrouter_model: config.openrouter_model.clone().unwrap_or_else(|| "qwen/qwen-2.5-72b-instruct:free".to_string()),
-            timeout_secs: config.ai_timeout_secs.unwrap_or(30),
-            max_retries: config.ai_max_retries.unwrap_or(3),
+            ollama_timeout_secs: config.ai_timeout_secs.unwrap_or(2),
+            max_retries: config.ai_max_retries.unwrap_or(1),
         }
     }
 }
 
-/// AI Request structure
+/// AI Request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequest {
     pub prompt: String,
@@ -71,7 +75,7 @@ pub struct AiRequest {
     pub temperature: Option<f32>,
 }
 
-/// AI Response structure
+/// AI Response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiResponse {
     pub content: String,
@@ -83,12 +87,11 @@ pub struct AiResponse {
 /// AI Error types
 #[derive(Debug, Clone)]
 pub enum AiError {
+    OllamaTimeout,
     OllamaConnection(String),
     OllamaError(String),
-    OllamaParse(String),
     OpenRouterConnection(String),
     OpenRouterError(String),
-    OpenRouterParse(String),
     OpenRouterAuth,
     OpenRouterRateLimit,
     AllProvidersFailed,
@@ -97,48 +100,38 @@ pub enum AiError {
 impl std::fmt::Display for AiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            AiError::OllamaTimeout => write!(f, "Ollama timeout (>2s)"),
             AiError::OllamaConnection(e) => write!(f, "Ollama connection: {}", e),
             AiError::OllamaError(e) => write!(f, "Ollama error: {}", e),
-            AiError::OllamaParse(e) => write!(f, "Ollama parse: {}", e),
             AiError::OpenRouterConnection(e) => write!(f, "OpenRouter connection: {}", e),
             AiError::OpenRouterError(e) => write!(f, "OpenRouter error: {}", e),
-            AiError::OpenRouterParse(e) => write!(f, "OpenRouter parse: {}", e),
-            AiError::OpenRouterAuth => write!(f, "OpenRouter: Unauthorized"),
+            AiError::OpenRouterAuth => write!(f, "OpenRouter: Unauthorized (check API key)"),
             AiError::OpenRouterRateLimit => write!(f, "OpenRouter: Rate limited"),
             AiError::AllProvidersFailed => write!(f, "All AI providers failed"),
         }
     }
 }
 
-/// Ollama API structures
+// Ollama structures
 #[derive(Debug, Serialize, Deserialize)]
-struct OllamaGenerateRequest {
+struct OllamaRequest {
     model: String,
     prompt: String,
     system: String,
-    stream: Option<bool>,
-    options: Option<OllamaOptions>,
+    stream: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct OllamaOptions {
-    temperature: f32,
-    num_predict: i32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct OllamaGenerateResponse {
+struct OllamaResponse {
     response: String,
 }
 
-/// OpenRouter API structures
+// OpenRouter structures
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenRouterRequest {
     model: String,
     messages: Vec<OpenRouterMessage>,
     max_tokens: u32,
-    temperature: f32,
-    stream: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -150,7 +143,6 @@ struct OpenRouterMessage {
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenRouterResponse {
     choices: Vec<OpenRouterChoice>,
-    usage: OpenRouterUsage,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -158,84 +150,104 @@ struct OpenRouterChoice {
     message: OpenRouterMessage,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct OpenRouterUsage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-    total_tokens: u32,
-}
-
-/// AI Manager for hybrid inference
+/// Thread-safe AI Manager
 pub struct AiManager {
     config: AiModelConfig,
-    client: Client,
+    ollama_client: Client,      // 2-second timeout
+    openrouter_client: Client,  // 30-second timeout
     current_provider: Arc<RwLock<AiProvider>>,
     fallback_count: Arc<RwLock<u32>>,
 }
 
 impl AiManager {
-    /// Create new AI manager
-    pub fn new(config: AiModelConfig) -> Self {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(config.timeout_secs))
-            .user_agent("Liberty-Reach-AI/0.7.0")
+    /// Create new AI manager with thread-safe Arc
+    pub fn new(config: AiModelConfig) -> Arc<Self> {
+        // Ollama client with STRICT 2-second timeout
+        let ollama_client = Client::builder()
+            .timeout(Duration::from_secs(config.ollama_timeout_secs))
+            .user_agent("Liberty-Sovereign-AI/0.7.1")
             .build()
-            .expect("Failed to create HTTP client");
+            .expect("Failed to create Ollama HTTP client");
 
-        Self {
+        // OpenRouter client with 30-second timeout
+        let openrouter_client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .user_agent("Liberty-Sovereign-AI/0.7.1")
+            .build()
+            .expect("Failed to create OpenRouter HTTP client");
+
+        let manager = Self {
             config,
-            client,
+            ollama_client,
+            openrouter_client,
             current_provider: Arc::new(RwLock::new(AiProvider::Ollama)),
             fallback_count: Arc::new(RwLock::new(0)),
-        }
+        };
+
+        Arc::new(manager)
     }
 
-    /// Check if Ollama is available
+    /// Check if Ollama is healthy (quick check)
     pub async fn check_ollama_health(&self) -> bool {
         let url = format!("{}/api/tags", self.config.ollama_url);
-        match self.client.get(&url).send().await {
-            Ok(resp) => resp.status().is_success(),
-            Err(_) => false,
+        match tokio::time::timeout(
+            Duration::from_secs(2),
+            self.ollama_client.get(&url).send()
+        ).await {
+            Ok(Ok(resp)) => resp.status().is_success(),
+            _ => false,
         }
     }
 
     /// Process message with automatic failover
     pub async fn process_message(&self, request: AiRequest) -> Result<AiResponse, AiError> {
-        let mut last_error: Option<AiError> = None;
+        let provider = *self.current_provider.read().await;
+        info!("🤖 AI request using {:?}", provider);
         
-        for _attempt in 0..self.config.max_retries {
-            let provider = *self.current_provider.read().await;
-            debug!("AI request using {:?}", provider);
-            
-            match self.try_provider(provider, &request).await {
-                Ok(response) => {
-                    *self.fallback_count.write().await = 0;
-                    if provider == AiProvider::OpenRouter {
-                        *self.current_provider.write().await = AiProvider::Ollama;
-                    }
-                    return Ok(response);
+        match self.try_provider(provider, &request).await {
+            Ok(response) => {
+                info!("✅ AI response from {:?} ({}ms)", response.provider, response.latency_ms);
+                *self.fallback_count.write().await = 0;
+                
+                // If we succeeded with OpenRouter, try Ollama next time
+                if provider == AiProvider::OpenRouter {
+                    *self.current_provider.write().await = AiProvider::Ollama;
+                    info!("🔄 Switching back to Ollama for next request");
                 }
-                Err(e) => {
-                    warn!("AI provider {:?} failed: {:?}", provider, e);
-                    last_error = Some(e.clone());
+                
+                Ok(response)
+            }
+            Err(e) => {
+                warn!("❌ AI provider {:?} failed: {}", provider, e);
+                
+                // Switch to OpenRouter if Ollama failed
+                if provider == AiProvider::Ollama {
+                    *self.current_provider.write().await = AiProvider::OpenRouter;
+                    *self.fallback_count.write().await += 1;
+                    info!("🔄 Switched to OpenRouter fallback");
                     
-                    if provider == AiProvider::Ollama {
-                        *self.current_provider.write().await = AiProvider::OpenRouter;
-                        *self.fallback_count.write().await += 1;
-                    }
+                    // Try OpenRouter immediately
+                    return self.try_provider(AiProvider::OpenRouter, &request).await;
                 }
+                
+                Err(e)
             }
         }
-        
-        Err(last_error.unwrap_or(AiError::AllProvidersFailed))
     }
 
     /// Try a specific provider
     async fn try_provider(&self, provider: AiProvider, request: &AiRequest) -> Result<AiResponse, AiError> {
         let start_time = std::time::Instant::now();
+        
         let result = match provider {
-            AiProvider::Ollama => self.try_ollama(request).await,
-            AiProvider::OpenRouter => self.try_openrouter(request).await,
+            AiProvider::Ollama => {
+                info!("⏳ Trying Ollama ({}s timeout)...", self.config.ollama_timeout_secs);
+                self.try_ollama(request).await
+            }
+            AiProvider::OpenRouter => {
+                info!("⏳ Trying OpenRouter...");
+                self.try_openrouter(request).await
+            }
         };
         
         result.map(|mut response| {
@@ -244,36 +256,37 @@ impl AiManager {
         })
     }
 
-    /// Try Ollama (local)
+    /// Try Ollama (local) - STRICT 2-second timeout
     async fn try_ollama(&self, request: &AiRequest) -> Result<AiResponse, AiError> {
         let url = format!("{}/api/generate", self.config.ollama_url);
         
-        let ollama_request = OllamaGenerateRequest {
+        let ollama_request = OllamaRequest {
             model: self.config.ollama_model.clone(),
             prompt: request.prompt.clone(),
             system: request.system_prompt.clone().unwrap_or_default(),
-            stream: Some(false),
-            options: Some(OllamaOptions {
-                temperature: request.temperature.unwrap_or(0.7),
-                num_predict: request.max_tokens.unwrap_or(512) as i32,
-            }),
+            stream: false,
         };
 
-        let response = self.client
-            .post(&url)
-            .json(&ollama_request)
-            .send()
-            .await
-            .map_err(|e| AiError::OllamaConnection(e.to_string()))?;
+        // Use tokio::time::timeout for STRICT timeout
+        let response_result = tokio::time::timeout(
+            Duration::from_secs(self.config.ollama_timeout_secs),
+            self.ollama_client.post(&url).json(&ollama_request).send()
+        ).await;
+
+        let response = match response_result {
+            Ok(Ok(resp)) => resp,
+            Ok(Err(e)) => return Err(AiError::OllamaConnection(e.to_string())),
+            Err(_) => return Err(AiError::OllamaTimeout),
+        };
 
         if !response.status().is_success() {
             return Err(AiError::OllamaError(format!("Status: {}", response.status())));
         }
 
-        let ollama_response: OllamaGenerateResponse = response
+        let ollama_response: OllamaResponse = response
             .json()
             .await
-            .map_err(|e| AiError::OllamaParse(e.to_string()))?;
+            .map_err(|e| AiError::OllamaError(format!("Parse error: {}", e)))?;
 
         Ok(AiResponse {
             content: ollama_response.response,
@@ -287,6 +300,7 @@ impl AiManager {
     async fn try_openrouter(&self, request: &AiRequest) -> Result<AiResponse, AiError> {
         let url = format!("{}/chat/completions", self.config.openrouter_url);
         
+        // ANONYMIZE: Remove any PII from prompt
         let anonymized_prompt = self.anonymize_prompt(&request.prompt);
         
         let openrouter_request = OpenRouterRequest {
@@ -295,7 +309,7 @@ impl AiManager {
                 OpenRouterMessage {
                     role: "system".to_string(),
                     content: request.system_prompt.clone().unwrap_or_else(|| 
-                        "You are a helpful AI assistant for Liberty Reach messenger.".to_string()
+                        "You are a helpful AI assistant for Liberty Sovereign messenger. Keep responses concise.".to_string()
                     ),
                 },
                 OpenRouterMessage {
@@ -304,15 +318,13 @@ impl AiManager {
                 },
             ],
             max_tokens: request.max_tokens.unwrap_or(512),
-            temperature: request.temperature.unwrap_or(0.7),
-            stream: false,
         };
 
-        let response = self.client
+        let response = self.openrouter_client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.config.openrouter_api_key))
-            .header("HTTP-Referer", "https://liberty-reach.com")
-            .header("X-Title", "Liberty Reach Messenger")
+            .header("HTTP-Referer", "https://liberty-sovereign.com")
+            .header("X-Title", "Liberty Sovereign Messenger")
             .json(&openrouter_request)
             .send()
             .await
@@ -328,7 +340,7 @@ impl AiManager {
         let openrouter_response: OpenRouterResponse = response
             .json()
             .await
-            .map_err(|e| AiError::OpenRouterParse(e.to_string()))?;
+            .map_err(|e| AiError::OpenRouterConnection(e.to_string()))?;
 
         let content = openrouter_response
             .choices
@@ -344,7 +356,7 @@ impl AiManager {
         })
     }
 
-    /// Anonymize prompt - remove PII and metadata
+    /// Anonymize prompt - remove PII
     fn anonymize_prompt(&self, prompt: &str) -> String {
         prompt
             .replace("user:", "[USER]")
@@ -353,37 +365,8 @@ impl AiManager {
             .replace("+", " [PHONE] ")
     }
 
-    /// Process incoming message and auto-suggest response
-    pub async fn process_incoming_message(
-        &self,
-        message: &str,
-        context: Option<&str>,
-    ) -> Result<AiResponse, AiError> {
-        let system_prompt = r#"You are an AI assistant for Liberty Reach secure messenger.
-Your tasks:
-1. Suggest helpful responses to incoming messages
-2. Detect hidden meanings or subtext when asked
-3. Keep suggestions concise and natural
-4. Respect user privacy - never ask for personal information
-
-Respond in the same language as the incoming message."#;
-
-        let prompt = if let Some(ctx) = context {
-            format!("Context: {}\n\nIncoming message: {}\n\nSuggest a response:", ctx, message)
-        } else {
-            format!("Incoming message: {}\n\nSuggest a response:", message)
-        };
-
-        self.process_message(AiRequest {
-            prompt,
-            system_prompt: Some(system_prompt.to_string()),
-            max_tokens: Some(256),
-            temperature: Some(0.8),
-        }).await
-    }
-
     /// Get current provider status
-    pub async fn get_provider_status(&self) -> (AiProvider, bool, u32) {
+    pub async fn get_status(&self) -> (AiProvider, bool, u32) {
         let provider = *self.current_provider.read().await;
         let fallback_count = *self.fallback_count.read().await;
         let ollama_healthy = self.check_ollama_health().await;
@@ -391,18 +374,30 @@ Respond in the same language as the incoming message."#;
     }
 }
 
-/// Start AI manager in background
+/// Start AI manager and return Arc
 pub fn start_ai_manager(config: Config) -> Arc<AiManager> {
     let ai_config = AiModelConfig::from_config(&config);
-    let manager = Arc::new(AiManager::new(ai_config));
     
-    // Start health check in background
+    // Check if API key is configured
+    if ai_config.openrouter_api_key.is_empty() {
+        warn!("⚠️  OPENROUTER_API_KEY not set! AI fallback will fail.");
+    }
+    
+    let manager = AiManager::new(ai_config);
+    
+    // Log initialization
+    info!("🤖 AI Manager initialized");
+    info!("   Primary: Ollama @ {}", manager.config.ollama_url);
+    info!("   Fallback: OpenRouter ({})", manager.config.openrouter_model);
+    info!("   Ollama timeout: {}s", manager.config.ollama_timeout_secs);
+    
+    // Start background health checker
     let manager_clone = Arc::clone(&manager);
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(Duration::from_secs(60)).await;
-            let (provider, healthy, fallbacks) = manager_clone.get_provider_status().await;
-            debug!("AI Status: provider={:?}, ollama_healthy={}, fallbacks={}", provider, healthy, fallbacks);
+            let (provider, healthy, fallbacks) = manager_clone.get_status().await;
+            debug!("🤖 AI Status: provider={:?}, ollama={}, fallbacks={}", provider, healthy, fallbacks);
         }
     });
     

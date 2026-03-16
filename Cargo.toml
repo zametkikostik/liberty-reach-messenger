@@ -1,69 +1,41 @@
 [package]
 name = "liberty-sovereign"
-version = "0.1.0"
+version = "0.7.1"
 edition = "2021"
+description = "Liberty Sovereign - Functional Core with Hybrid AI + P2P"
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-libp2p = { version = "0.53", features = ["tcp", "dns", "websocket", "noise", "yamux", "mdns", "async-std", "macros", "gossipsub", "kad", "quic"] }
-futures = "0.3"
-async-std = { version = "1.12", features = ["attributes"] }
-serde_json = "1.0"
+# Async runtime
 tokio = { version = "1.0", features = ["full"] }
-sled = "0.34"
-x25519-dalek-ng = "1.1"
-rand = "0.8"
-hex = "0.4"
-chacha20poly1305 = "0.10"
-aead = "0.5"
-aes-gcm = "0.10"
-axum = { version = "0.7", features = ["multipart"] }
-tower-http = { version = "0.5", features = ["cors"] }
-async-channel = "2.5"
-zeroize = "1.7"
 
-# Web3 / Blockchain
-ethers = { version = "2.0", default-features = false, features = ["rustls"] }
+# libp2p stack
+libp2p = { version = "0.53", features = [
+    "tcp",
+    "dns",
+    "noise",
+    "yamux",
+    "mdns",
+    "gossipsub",
+    "kad",
+    "tokio",
+] }
 
-# HTTP client for Pinata and OpenRouter
-reqwest = { version = "0.11", features = ["json", "multipart"] }
+# HTTP client for AI
+reqwest = { version = "0.11", features = ["json"] }
 
-# Time handling
-chrono = { version = "0.4", features = ["serde"] }
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
-# HMAC for Pinata authentication
-hmac = "0.12"
+# Cryptography
 sha2 = "0.10"
-base64 = "0.21"
 
-# Environment variables
-dotenv = "0.15"
-dotenvy = "0.15"
-
-# Additional utilities
-once_cell = "1.19"
-
-# Media type detection
-infer = "0.15"
-
-# Bytes for multipart
-bytes = "1.5"
-
-# UUID for chat and invitation IDs
-uuid = { version = "1.5", features = ["v4"] }
-
-# Tempfile for tests
-tempfile = "3.8"
-
-# Tracing for logging
+# Tracing (verbose logging)
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# SHA2 for message IDs
-sha2 = "0.10"
+# Environment variables
+dotenvy = "0.15"
 
-# Bincode for P2P serialization
-bincode = "1.3"
-
-# Async trait for AI engine
-async-trait = "0.1"
+# Utilities
+futures = "0.3"
