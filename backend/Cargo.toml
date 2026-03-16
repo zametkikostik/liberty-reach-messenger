@@ -8,8 +8,8 @@ description = "Cloudflare Worker backend for Liberty Reach Messenger"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Cloudflare Workers
-worker = "0.2"
+# Cloudflare Workers - НОВАЯ ВЕРСИЯ
+worker = "0.7"
 
 # Cryptography
 ed25519-dalek = { version = "2.1", features = ["serde"] }
