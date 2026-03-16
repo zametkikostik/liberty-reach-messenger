@@ -3,10 +3,10 @@ import 'package:http/http.dart' as http;
 
 /// IdentityService для взаимодействия с Cloudflare Worker
 /// 
-/// Отправляет публичный ключ на бэкенд и получает User ID
+/// Backend URL: https://a-love-story.kostik.workers.dev
 class IdentityService {
-  // ЗАМЕНИ НА СВОЙ Cloudflare Worker URL!
-  static const String _baseUrl = 'https://a-love-story.YOUR_ACCOUNT.workers.dev';
+  // Cloudflare Worker URL
+  static const String _baseUrl = 'https://a-love-story.kostik.workers.dev';
   
   final http.Client _client = http.Client();
   
