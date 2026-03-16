@@ -10,6 +10,21 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  
+  # HTTP client for API calls
+  http: ^1.1.0
+  
+  # Secure storage for keys
+  flutter_secure_storage: ^9.0.0
+  
+  # Cryptography (Ed25519)
+  cryptography: ^2.7.0
+  
+  # Local storage
+  shared_preferences: ^2.2.2
+  
+  # Base64 encoding
+  convert: ^3.1.1
 
 dev_dependencies:
   flutter_test:

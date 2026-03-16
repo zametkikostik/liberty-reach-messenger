@@ -1,0 +1,16 @@
+name = "a-love-story"
+main = "build/worker/shim.mjs"
+compatibility_date = "2024-01-01"
+
+# Build configuration for Rust
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"

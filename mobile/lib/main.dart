@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'initial_screen.dart';
 
 void main() {
   runApp(const LibertyReachApp());
@@ -15,11 +16,7 @@ class LibertyReachApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const Scaffold(
-        body: Center(
-          child: Text('Liberty Reach - Coming Soon'),
-        ),
-      ),
+      home: const InitialScreen(),
     );
   }
 }
