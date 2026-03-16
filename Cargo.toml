@@ -55,6 +55,13 @@ uuid = { version = "1.5", features = ["v4"] }
 # Tempfile for tests
 tempfile = "3.8"
 
+# Tracing for logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# SHA2 for message IDs
+sha2 = "0.10"
+
 # Bincode for P2P serialization
 bincode = "1.3"
 

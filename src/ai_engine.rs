@@ -178,7 +178,7 @@ impl AiManager {
     pub fn new(config: AiModelConfig) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_secs))
-            .user_agent("Liberty-Reach-AI/0.6.0")
+            .user_agent("Liberty-Reach-AI/0.7.0")
             .build()
             .expect("Failed to create HTTP client");
 
