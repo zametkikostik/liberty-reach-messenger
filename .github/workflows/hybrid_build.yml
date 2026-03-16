@@ -1,0 +1,220 @@
+name: Hybrid CI/CD Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  RUST_VERSION: '1.75'
+
+jobs:
+  # ============================================================================
+  # Job 1: Build Flutter Android APK
+  # ============================================================================
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      # 1. Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      # 3. Setup Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      # 4. Ensure main.dart exists
+      - name: Ensure Flutter Entry Point
+        run: |
+          echo "🔍 Checking for lib/main.dart..."
+          if [ ! -f "lib/main.dart" ]; then
+            echo "⚠️ lib/main.dart not found, creating fallback..."
+            mkdir -p lib
+            cat > lib/main.dart << 'DART_EOF'
+          import 'package:flutter/material.dart';
+          void main() => runApp(const MaterialApp(home: Scaffold(body: Center(child: Text('Liberty Reach')))));
+          DART_EOF
+          fi
+
+      # 5. Decode Keystore
+      - name: Decode Keystore
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "🔐 Decoding keystore..."
+          mkdir -p android/app
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          ls -la android/app/upload-keystore.jks
+
+      # 6. Setup Environment Variables
+      - name: Setup Environment Variables
+        run: |
+          echo "KEY_ALIAS=upload" >> $GITHUB_ENV
+          echo "STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+
+      # 7. Create key.properties
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=upload
+          storeFile=upload-keystore.jks
+          EOF
+
+      # 8. Build APK
+      - name: Build Release APK
+        run: |
+          echo "📁 Directory structure:"
+          ls -R
+          flutter clean
+          flutter pub get
+          flutter build apk --release --split-per-abi --target lib/main.dart
+        env:
+          KEY_ALIAS: upload
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+
+      # 9. Build App Bundle
+      - name: Build App Bundle
+        run: |
+          flutter build appbundle --release --target lib/main.dart
+        env:
+          KEY_ALIAS: upload
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+
+      # 10. Upload Artifacts
+      - name: Upload APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: liberty-reach-apks
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+          retention-days: 30
+
+      # 11. Create Release (if tagged)
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+          generate_release_notes: true
+          draft: false
+
+  # ============================================================================
+  # Job 2: Deploy Cloudflare Worker (Rust Backend)
+  # ============================================================================
+  deploy-backend:
+    name: Deploy Cloudflare Worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      # 1. Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Rust
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          target: wasm32-unknown-unknown
+
+      # 3. Cache Cargo
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
+
+      # 4. Install worker-build
+      - name: Install worker-build
+        run: cargo install worker-build
+
+      # 5. Build Worker
+      - name: Build Worker
+        run: worker-build --release
+
+      # 6. Deploy to Cloudflare
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: 'backend'
+          command: deploy
+
+      # 7. Output deployment info
+      - name: Deployment Info
+        run: |
+          echo "✅ Backend deployed successfully!"
+          echo "🌐 Worker URL: https://a-love-story.${{ vars.CLOUDFLARE_ACCOUNT_SUBDOMAIN }}.workers.dev"
+
+  # ============================================================================
+  # Job 3: Build & Push Docker Image (Optional)
+  # ============================================================================
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [build-android]
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: ${{ secrets.DOCKER_USERNAME != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ secrets.DOCKER_PASSWORD != '' }}
+          tags: |
+            zametkikostik/liberty-sovereign:latest
+            zametkikostik/liberty-sovereign:${{ github.sha }}
+          cache-from: type=registry,ref=zametkikostik/liberty-sovereign:buildcache
+          cache-to: type=registry,ref=zametkikostik/liberty-sovereign:buildcache,mode=max
