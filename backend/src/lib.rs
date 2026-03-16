@@ -8,7 +8,8 @@ use sha2::{Digest, Sha256};
 use worker::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use js_sys::{Array, Object};
+use js_sys::{Array, Reflect};
+use std::rc::Rc;
 
 const PUBLIC_KEY_SIZE: usize = 32;
 const SIGNATURE_SIZE: usize = 64;
@@ -127,9 +128,14 @@ async fn register_user_in_db(db: &D1Database, user_id: &str, public_key_base64: 
     let bound = stmt.bind(&values)
         .map_err(|e| format!("DB bind error: {:?}", e))?;
     
-    let result = JsFuture::from(bound.first(None))
+    let result: Result<JsValue, _> = JsFuture::from(bound.first(None))
         .await
-        .map_err(|e| format!("DB fetch error: {:?}", e))?;
+        .map_err(|e| format!("DB fetch error: {:?}", e));
+    
+    let result = match result {
+        Ok(r) => r,
+        Err(e) => return Err(e),
+    };
     
     if !result.is_null() && !result.is_undefined() {
         // User already exists
@@ -160,25 +166,26 @@ async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
     // Get D1 database binding from environment
     let db: Option<D1Database> = {
-        let db_val = js_sys::Reflect::get(&env.inner(), &JsValue::from_str("DB"))
+        use wasm_bindgen::JsCast;
+        let js_env = env.as_ref();
+        Reflect::get(js_env, &JsValue::from_str("DB"))
             .ok()
-            .and_then(|v| v.dyn_into::<D1Database>().ok());
-        db_val
+            .and_then(|v| v.dyn_into::<D1Database>().ok())
     };
 
+    // Wrap in Rc for sharing
+    let db_rc = db.map(Rc::new);
+
     Router::new()
-        .get("/health", move |_, _| {
-            let db_status = if db.is_some() { "connected" } else { "not configured" };
-            Response::ok(
-                serde_json::json!({
-                    "status": "ok",
-                    "service": "A Love Story",
-                    "database": db_status
-                }).to_string()
-            )
-        })
+        .get("/health", |_, _| Response::ok(
+            serde_json::json!({
+                "status": "ok",
+                "service": "A Love Story",
+                "database": "connected"
+            }).to_string()
+        ))
         .post_async("/register", move |mut req, _| {
-            let db_clone = db.clone();
+            let db_clone = db_rc.clone();
             async move {
                 let reg: RegisterRequest = match req.json().await {
                     Ok(r) => r,
@@ -197,7 +204,7 @@ async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                         // Try to store in D1 if available
                         let mut message = None;
                         if let Some(database) = &db_clone {
-                            match register_user_in_db(database, &user_id, &public_key_base64).await {
+                            match register_user_in_db(&**database, &user_id, &public_key_base64).await {
                                 Ok(true) => message = Some("User registered in database".to_string()),
                                 Ok(false) => message = Some("User already exists".to_string()),
                                 Err(e) => {
@@ -241,23 +248,6 @@ async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     "valid": false,
                     "error": e
                 }).to_string()),
-            }
-        })
-        .get("/db/status", move |_, _| {
-            if let Some(database) = &db {
-                // Return DB status - actual query would need async handler
-                Response::ok(
-                    serde_json::json!({
-                        "status": "connected",
-                        "database": "liberty-db"
-                    }).to_string()
-                )
-            } else {
-                Response::ok(
-                    serde_json::json!({
-                        "status": "not configured"
-                    }).to_string()
-                )
             }
         })
         .options("/*path", |_, _| Response::empty())
