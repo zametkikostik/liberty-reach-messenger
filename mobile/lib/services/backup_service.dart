@@ -1,245 +1,276 @@
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:crypto/crypto.dart';
+import 'dart:math';
 import 'package:encrypt/encrypt.dart' as encrypt_pkg;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:crypto/crypto.dart';
+import 'package:pointycastle/key_derivators/api.dart';
+import 'package:pointycastle/key_derivators/pbkdf2.dart';
+import 'package:pointycastle/digests/sha256.dart';
+import 'package:pointycastle/digests/sha512.dart';
 
-/// 🔐 Сервис для шифрования бэкапов
-/// 
-/// Использует AES-256-GCM для шифрования данных переписки
-/// Ключ шифрования выводится из приватного ключа пользователя
-/// 
-/// ## Безопасность:
+/// 🔐 Backup Service for Liberty Reach Messenger
+///
+/// Zero-Trust Backup Architecture:
+/// - ALL backups encrypted BEFORE leaving device (E2EE)
 /// - AES-256-GCM (Authenticated Encryption)
-/// - Уникальный IV для каждого шифрования
-/// - Ключ выводится через PBKDF2 из приватного ключа
-/// - Google Drive видит только зашифрованный файл
-/// 
-/// ## Пример использования:
-/// ```dart
-/// final backupService = BackupService();
-/// final encrypted = await backupService.encryptBackup(jsonData, privateKey);
-/// await uploadToGoogleDrive(encrypted);
-/// ```
+/// - PBKDF2 key derivation (100,000 iterations)
+/// - Google Drive sees ONLY ciphertext
+/// - Private key NEVER leaves device
+///
+/// Security Features:
+/// - Random.secure() for all entropy
+/// - Unique IV per encryption
+/// - MAC for integrity verification
+/// - Secure key derivation from private key
 class BackupService {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
-  static const String _backupKeyKey = 'backup_encryption_key';
-  static const String _backupIvKey = 'backup_encryption_iv';
+  final Random _secureRandom = Random.secure();
 
-  /// 🔐 Шифрование бэкапа с использованием AES-256-GCM
-  /// 
-  /// ## Параметры:
-  /// - [jsonData]: JSON строка с данными переписки
-  /// - [privateKeyBase64]: Приватный ключ пользователя (Base64)
-  /// 
-  /// ## Возвращает:
-  /// Map с зашифрованными данными:
+  // ============================================================================
+  // ENCRYPTION
+  // ============================================================================
+
+  /// Encrypt backup data with AES-256-GCM
+  ///
+  /// ## Parameters:
+  /// - [jsonData]: JSON string with chat data (plaintext)
+  /// - [privateKeyBase64]: User's private key (Base64, for key derivation)
+  ///
+  /// ## Returns:
+  /// Map with encrypted data:
   /// ```json
   /// {
-  ///   "encrypted_data": "<Base64>",
-  ///   "iv": "<Base64>",
   ///   "salt": "<Base64>",
+  ///   "iv": "<Base64>",
+  ///   "data": "<Base64>",
+  ///   "mac": "<Base64>",
+  ///   "version": "1.0",
   ///   "timestamp": "<ISO8601>"
   /// }
   /// ```
-  Future<Map<String, dynamic>> encryptBackup(
-    String jsonData,
-    String privateKeyBase64,
-  ) async {
-    // Генерируем случайную соль для key derivation
-    final salt = _generateSalt();
-    
-    // Выводим ключ шифрования из приватного ключа через PBKDF2
-    final key = _deriveKey(privateKeyBase64, salt);
-    
-    // Создаём AES-256-GCM шифр
-    final encrypter = encrypt_pkg.Encrypter(encrypt_pkg.AES(key));
-    
-    // Генерируем уникальный IV (Initialization Vector)
-    final iv = encrypt_pkg.IV.fromSecureRandom(12); // 96-bit IV для GCM
-    
-    // Шифруем данные
-    final encrypted = encrypter.encrypt(jsonData, iv: iv);
-    
-    // Сохраняем метаданные
-    final result = {
-      'encrypted_data': base64Encode(encrypted.bytes),
-      'iv': base64Encode(iv.bytes),
-      'salt': base64Encode(salt),
-      'timestamp': DateTime.now().toIso8601String(),
-      'version': '1.0',
-    };
-
-    // Сохраняем ключ и IV для возможной расшифровки (опционально)
-    await _secureStorage.write(
-      key: _backupKeyKey,
-      value: base64Encode(key.bytes),
-    );
-    await _secureStorage.write(
-      key: _backupIvKey,
-      value: base64Encode(iv.bytes),
-    );
-
-    return result;
-  }
-
-  /// 🔓 Расшифровка бэкапа
-  /// 
-  /// ## Параметры:
-  /// - [encryptedData]: Зашифрованные данные (Base64)
-  /// - [iv]: Initialization Vector (Base64)
-  /// - [salt]: Соль для key derivation (Base64)
-  /// - [privateKeyBase64]: Приватный ключ пользователя (Base64)
-  /// 
-  /// ## Возвращает:
-  /// Расшифрованная JSON строка с данными переписки
-  Future<String> decryptBackup({
-    required String encryptedData,
-    required String iv,
-    required String salt,
+  ///
+  /// ## Security:
+  /// - Salt: 16 bytes (Random.secure)
+  /// - IV: 12 bytes (Random.secure, unique per encryption)
+  /// - Key: 32 bytes (PBKDF2-SHA256, 100,000 iterations)
+  /// - MAC: 16 bytes (GCM authentication tag)
+  Future<Map<String, String>> encryptBackup({
+    required String jsonData,
     required String privateKeyBase64,
   }) async {
-    // Выводим ключ шифрования из приватного ключа
-    final key = _deriveKey(privateKeyBase64, base64Decode(salt));
-    
-    // Создаём AES-256-GCM шифр
-    final encrypter = encrypt_pkg.Encrypter(encrypt_pkg.AES(key));
-    
-    // Расшифровываем данные
-    final decrypted = encrypter.decrypt64(
-      encryptedData,
-      iv: encrypt_pkg.IV.fromBase64(iv),
-    );
+    // 1. Generate random salt (16 bytes)
+    final saltBytes = _generateSecureBytes(16);
+    final salt = base64Encode(saltBytes);
 
-    return decrypted;
+    // 2. Derive key with PBKDF2 (100,000 iterations)
+    final key = _deriveKey(privateKeyBase64, saltBytes);
+
+    // 3. Generate random IV (12 bytes for GCM)
+    final ivBytes = _generateSecureBytes(12);
+    final iv = encrypt_pkg.IV(ivBytes);
+
+    // 4. Encrypt with AES-256-GCM
+    final encrypter = encrypt_pkg.Encrypter(encrypt_pkg.AES(key, mode: encrypt_pkg.AESMode.gcm));
+    final encrypted = encrypter.encrypt(jsonData, iv: iv);
+
+    // 5. Return encrypted data with metadata
+    return {
+      'salt': salt,
+      'iv': base64Encode(ivBytes),
+      'data': base64Encode(encrypted.bytes),
+      'mac': base64Encode(encrypted.mac.bytes),
+      'version': '1.0',
+      'timestamp': DateTime.now().toIso8601String(),
+      'algorithm': 'AES-256-GCM',
+      'kdf': 'PBKDF2-SHA256',
+      'iterations': 100000,
+    };
   }
 
-  /// Экспорт бэкапа в файл для Google Drive
-  /// 
-  /// Создаёт JSON файл с зашифрованными данными
-  Future<String> exportBackupFile(
-    String jsonData,
-    String privateKeyBase64,
-  ) async {
-    final encrypted = await encryptBackup(jsonData, privateKeyBase64);
-    
-    // Создаём JSON файл бэкапа
+  // ============================================================================
+  // DECRYPTION
+  // ============================================================================
+
+  /// Decrypt backup data
+  ///
+  /// ## Parameters:
+  /// - [encryptedData]: Map with salt, iv, data, mac
+  /// - [privateKeyBase64]: User's private key (same as encryption)
+  ///
+  /// ## Returns:
+  /// Decrypted JSON string with chat data
+  ///
+  /// ## Security:
+  /// - Verifies MAC before decryption
+  /// - Returns null if MAC verification fails
+  Future<String?> decryptBackup({
+    required Map<String, String> encryptedData,
+    required String privateKeyBase64,
+  }) async {
+    try {
+      // 1. Extract parameters
+      final salt = base64Decode(encryptedData['salt']!);
+      final ivBytes = base64Decode(encryptedData['iv']!);
+      final dataBytes = base64Decode(encryptedData['data']!);
+      final macBytes = base64Decode(encryptedData['mac']!);
+
+      // 2. Derive key (same process as encryption)
+      final key = _deriveKey(privateKeyBase64, salt);
+
+      // 3. Create IV and MAC
+      final iv = encrypt_pkg.IV(ivBytes);
+      final mac = encrypt_pkg.Mac(macBytes);
+
+      // 4. Decrypt with MAC verification
+      final encrypter = encrypt_pkg.Encrypter(encrypt_pkg.AES(key, mode: encrypt_pkg.AESMode.gcm));
+      final decrypted = encrypter.decrypt64(
+        encryptedData['data']!,
+        iv: iv,
+        mac: mac,
+      );
+
+      return decrypted;
+
+    } catch (e) {
+      // Decryption failed (wrong key, tampered data, etc.)
+      return null;
+    }
+  }
+
+  // ============================================================================
+  // EXPORT/IMPORT
+  // ============================================================================
+
+  /// Export backup to Google Drive compatible JSON
+  ///
+  /// Creates a file that can be uploaded to Google Drive
+  /// The file is fully encrypted - Google cannot read contents
+  Future<String> exportBackupFile({
+    required String jsonData,
+    required String privateKeyBase64,
+  }) async {
+    final encrypted = await encryptBackup(
+      jsonData: jsonData,
+      privateKeyBase64: privateKeyBase64,
+    );
+
+    // Create backup file structure
     final backupFile = jsonEncode({
       'liberty_backup': encrypted,
       'app': 'Liberty Reach Messenger',
+      'version': '0.6.0',
       'encryption': 'AES-256-GCM',
+      'note': 'This file is encrypted. Only the owner can decrypt it.',
     });
 
     return backupFile;
   }
 
-  /// Импорт бэкапа из файла Google Drive
-  /// 
-  /// Расшифровывает данные из JSON файла
-  Future<Map<String, dynamic>> importBackupFile(
-    String backupJson,
-    String privateKeyBase64,
-  ) async {
-    final data = jsonDecode(backupJson);
-    final backup = data['liberty_backup'] as Map<String, dynamic>;
+  /// Import backup from Google Drive JSON file
+  ///
+  /// Decrypts the backup file and returns chat data
+  Future<Map<String, dynamic>?> importBackupFile({
+    required String backupJson,
+    required String privateKeyBase64,
+  }) async {
+    try {
+      final data = jsonDecode(backupJson);
+      final backup = data['liberty_backup'] as Map<String, dynamic>;
 
-    final decrypted = await decryptBackup(
-      encryptedData: backup['encrypted_data'],
-      iv: backup['iv'],
-      salt: backup['salt'],
-      privateKeyBase64: privateKeyBase64,
-    );
+      final decrypted = await decryptBackup(
+        encryptedData: Map<String, String>.from(backup),
+        privateKeyBase64: privateKeyBase64,
+      );
 
-    return {
-      'messages': jsonDecode(decrypted),
-      'timestamp': backup['timestamp'],
-      'version': backup['version'],
-    };
-  }
+      if (decrypted == null) return null;
 
-  /// Генерация случайной соли (16 байт)
-  Uint8List _generateSalt() {
-    final salt = Uint8List(16);
-    for (int i = 0; i < salt.length; i++) {
-      salt[i] = (DateTime.now().millisecondsSinceEpoch + i) % 256;
+      return {
+        'messages': jsonDecode(decrypted),
+        'timestamp': backup['timestamp'],
+        'version': backup['version'],
+      };
+    } catch (e) {
+      return null;
     }
-    return salt;
   }
 
-  /// Вывод ключа шифрования из приватного ключа через PBKDF2
-  encrypt_pkg.Key _deriveKey(String privateKeyBase64, Uint8List salt) {
-    // Декодируем приватный ключ
-    final privateKeyBytes = base64Decode(privateKeyBase64);
-    
-    // Используем SHA-256 хэш от приватного ключа как основу
-    final keyMaterial = sha256.convert(privateKeyBytes).bytes;
-    
-    // PBKDF2 с 10000 итераций для усиления ключа
-    final pbkdf2 = PBKDF2(
-      hmac: HMAC(sha256),
-      iterations: 10000,
-    );
-    
-    // Выводим 32-байтный ключ для AES-256
-    final derivedKey = pbkdf2.process(
-      Uint8List.fromList(keyMaterial),
-      salt,
-    );
+  // ============================================================================
+  // VALIDATION
+  // ============================================================================
 
-    return encrypt_pkg.Key(derivedKey);
-  }
-
-  /// Проверка наличия сохранённого ключа
-  Future<bool> hasBackupKey() async {
-    final key = await _secureStorage.read(key: _backupKeyKey);
-    return key != null;
-  }
-
-  /// Очистка сохранённых ключей
-  Future<void> clearBackupKeys() async {
-    await _secureStorage.delete(key: _backupKeyKey);
-    await _secureStorage.delete(key: _backupIvKey);
-  }
-
-  /// Получение информации о последнем бэкапе
-  Future<Map<String, dynamic>?> getBackupInfo() async {
-    final key = await _secureStorage.read(key: _backupKeyKey);
-    if (key == null) return null;
-
-    return {
-      'has_backup': true,
-      'key_stored': true,
-    };
-  }
-}
-
-/// Утилита для работы с бэкапами
-class BackupUtils {
-  /// Создание имени файла для бэкапа
-  static String createBackupFilename() {
-    final now = DateTime.now();
-    return 'liberty_backup_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}.enc';
-  }
-
-  /// Проверка целостности бэкапа
+  /// Validate backup file structure
   static bool validateBackupStructure(Map<String, dynamic> backup) {
-    return backup.containsKey('liberty_backup') &&
-           backup['liberty_backup'] is Map &&
-           (backup['liberty_backup'] as Map).containsKey('encrypted_data') &&
-           (backup['liberty_backup'] as Map).containsKey('iv') &&
-           (backup['liberty_backup'] as Map).containsKey('salt');
+    if (!backup.containsKey('liberty_backup')) return false;
+    
+    final encrypted = backup['liberty_backup'];
+    if (encrypted is! Map) return false;
+    
+    return encrypted.containsKey('encrypted_data') &&
+           encrypted.containsKey('iv') &&
+           encrypted.containsKey('salt') &&
+           encrypted.containsKey('mac');
   }
 
-  /// Получение размера бэкапа в байтах
+  /// Get backup file size in bytes
   static int getBackupSize(String backupJson) {
     return utf8.encode(backupJson).length;
   }
 
-  /// Форматирование размера для отображения
+  /// Format backup size for display
   static String formatBackupSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
+
+  // ============================================================================
+  // INTERNAL HELPERS
+  // ============================================================================
+
+  /// Generate cryptographically secure random bytes
+  List<int> _generateSecureBytes(int length) {
+    return List<int>.generate(length, (_) => _secureRandom.nextInt(256));
+  }
+
+  /// Derive AES-256 key from private key using PBKDF2
+  encrypt_pkg.Key _deriveKey(String privateKeyBase64, List<int> salt) {
+    // Decode private key
+    final privateKeyBytes = base64Decode(privateKeyBase64);
+
+    // Hash private key with SHA-256
+    final keyMaterial = sha256.convert(privateKeyBytes).bytes;
+
+    // PBKDF2 with 100,000 iterations
+    final pbkdf2 = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64));
+    pbkdf2.init(Pbkdf2Parameters(
+      Uint8List.fromList(keyMaterial),
+      salt,
+      100000, // High iterations for security
+    ));
+
+    // Derive 32-byte key for AES-256
+    final derivedKey = pbkdf2.process(32);
+    return encrypt_pkg.Key(derivedKey);
+  }
+}
+
+/// Backup metadata for UI display
+class BackupInfo {
+  final String fileName;
+  final int sizeBytes;
+  final DateTime timestamp;
+  final String version;
+  final bool isEncrypted;
+
+  BackupInfo({
+    required this.fileName,
+    required this.sizeBytes,
+    required this.timestamp,
+    required this.version,
+    required this.isEncrypted,
+  });
+
+  String get formattedSize => BackupService.formatBackupSize(sizeBytes);
+  
+  String get formattedDate => '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+  
+  String get formattedTime => '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
 }
