@@ -1,15 +1,16 @@
 [package]
 name = "liberty-sovereign"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
-description = "Liberty Sovereign - Functional Core with Hybrid AI + P2P"
+description = "Liberty Sovereign - P2P Messenger with Hybrid AI"
 
 [dependencies]
-# Async runtime
-tokio = { version = "1.0", features = ["full"] }
+# Async runtime (REQUIRED for libp2p tokio)
+tokio = { version = "1.0", features = ["full", "rt-multi-thread", "macros", "io-util"] }
 
-# libp2p stack
+# libp2p stack (tokio-compatible)
 libp2p = { version = "0.53", features = [
+    "tokio",
     "tcp",
     "dns",
     "noise",
@@ -17,8 +18,11 @@ libp2p = { version = "0.53", features = [
     "mdns",
     "gossipsub",
     "kad",
-    "tokio",
+    "macros",
 ] }
+
+# Separate identity crate (fixes type mismatch)
+libp2p-identity = "0.2"
 
 # HTTP client for AI
 reqwest = { version = "0.11", features = ["json"] }

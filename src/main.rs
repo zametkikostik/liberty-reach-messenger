@@ -1,17 +1,15 @@
-//! Liberty Sovereign v0.7.1 - Functional Core
+//! Liberty Sovereign v0.7.2 - Tokio + libp2p v0.53 Compatible
 //!
 //! Features:
 //! - Verbose tracing (see EVERYTHING)
 //! - Hybrid AI (Ollama → OpenRouter with 2s timeout)
-//! - P2P via libp2p (mDNS + Kademlia + Gossipsub)
+//! - P2P via libp2p tokio (mDNS + Kademlia + Gossipsub)
 //! - Interactive stdin terminal
-//! - Proper error handling (no silent panics)
+//! - Proper error handling (? and expect())
 
 mod ai_engine;
-mod config;
 
 use ai_engine::{AiManager, AiRequest, start_ai_manager};
-use config::Config;
 
 use futures::stream::StreamExt;
 use libp2p::{
@@ -31,11 +29,11 @@ use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
-/// Network Behaviour
+/// Network Behaviour with proper derive macro
 #[derive(NetworkBehaviour)]
 struct LibertyBehaviour {
     gossipsub: gossipsub::Behaviour,
-    mdns: mdns::async_io::Behaviour,
+    mdns: mdns::tokio::Behaviour,
     kademlia: kad::Behaviour<MemoryStore>,
 }
 
@@ -59,60 +57,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     info!("╔═══════════════════════════════════════════════════════════╗");
-    info!("║   Liberty Sovereign v0.7.1 - Functional Core              ║");
+    info!("║   Liberty Sovereign v0.7.2 - Tokio + libp2p v0.53         ║");
     info!("╚═══════════════════════════════════════════════════════════╝");
 
     // ========================================================================
-    // 2. LOAD CONFIGURATION
+    // 2. LOAD ENVIRONMENT
     // ========================================================================
-    let config = match Config::load() {
-        Ok(cfg) => {
-            info!("✅ Configuration loaded");
-            cfg
-        }
-        Err(e) => {
-            warn!("⚠️  Could not load config: {}. Using defaults.", e);
-            Config::default()
-        }
-    };
-
-    // Check for API key
-    if config.openrouter_api_key.is_none() || config.openrouter_api_key.as_ref().unwrap().is_empty() {
-        warn!("⚠️  OPENROUTER_API_KEY not set in .env.local!");
-        warn!("   AI will only work if Ollama is running locally.");
-        warn!("   Get a free key: https://openrouter.ai/keys");
-    }
+    dotenvy::dotenv().ok(); // Load .env.local if exists
+    info!("✅ Environment loaded");
 
     // ========================================================================
-    // 3. CREATE IDENTITY
+    // 3. CREATE IDENTITY (using libp2p::identity)
     // ========================================================================
-    let identity_keypair = identity::ed25519::Keypair::generate();
+    let identity_keypair = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(identity_keypair.public());
     
     info!("🆔 Local Peer ID: {}", local_peer_id);
     info!("   (Share this with other nodes to connect manually)");
 
     // ========================================================================
-    // 4. CREATE TRANSPORT
+    // 4. CREATE TRANSPORT (tokio-compatible)
     // ========================================================================
-    let transport = tcp::async_io::Transport::new(tcp::Config::default().nodelay(true))
+    let transport = tcp::tokio::Transport::new(tcp::Config::default().nodelay(true))
         .upgrade(Version::V1)
         .authenticate(noise::Config::new(&identity_keypair)?)
         .multiplex(yamux::Config::default())
         .boxed();
 
-    info!("✅ Transport created (TCP + Noise + Yamux)");
+    info!("✅ Transport created (TCP tokio + Noise + Yamux)");
 
     // ========================================================================
     // 5. CREATE SWARM WITH BEHAVIOURS
     // ========================================================================
     let mut swarm = create_swarm(&identity_keypair, local_peer_id, transport)?;
-    info!("✅ Swarm created with Gossipsub + mDNS + Kademlia");
+    info!("✅ Swarm created with Gossipsub + mDNS tokio + Kademlia");
 
     // ========================================================================
     // 6. START LISTENING
     // ========================================================================
-    let p2p_port = config.p2p_port.unwrap_or(40000);
+    let p2p_port: u16 = std::env::var("P2P_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(40000);
+    
     let listen_addr = format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse()?;
     
     match swarm.listen_on(listen_addr.clone()) {
@@ -123,7 +110,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // ========================================================================
     // 7. INITIALIZE AI MANAGER
     // ========================================================================
-    let ai_manager = start_ai_manager(config.clone());
+    let ai_manager = start_ai_manager();
     
     // Quick health check
     let ai_status = ai_manager.get_status().await;
@@ -179,7 +166,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         tokio::select! {
             // =================================================================
-            // TERMINAL INPUT
+            // TERMINAL INPUT (String - Sized type)
             // =================================================================
             Some(input) = rx.recv() => {
                 process_terminal_input(&input, &ai_manager).await;
@@ -347,9 +334,8 @@ fn create_swarm(
     let gossipsub_config = gossipsub::ConfigBuilder::default()
         .validation_mode(ValidationMode::Strict)
         .message_id_fn(|msg| {
-            use sha2::{Digest, Sha256};
-            let mut hasher = Sha256::new();
-            hasher.update(&msg.source.unwrap().to_bytes());
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(&msg.source.expect("Message source").to_bytes());
             hasher.update(&msg.data);
             gossipsub::MessageId::from(hasher.finalize().to_vec())
         })
@@ -361,8 +347,8 @@ fn create_swarm(
         gossipsub_config,
     ).expect("Valid gossipsub configuration");
 
-    // mDNS configuration
-    let mdns = mdns::async_io::Behaviour::new(
+    // mDNS tokio configuration
+    let mdns = mdns::tokio::Behaviour::new(
         mdns::Config::default(),
         local_peer_id,
     )?;

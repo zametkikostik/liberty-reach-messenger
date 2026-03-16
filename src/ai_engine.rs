@@ -1,14 +1,8 @@
-//! Liberty Sovereign Hybrid AI Engine v0.7.1
+//! Liberty Sovereign Hybrid AI Engine v0.7.2
 //!
 //! Thread-safe Hybrid AI with strict 2-second timeout fallback:
 //! - Primary: Local Ollama (127.0.0.1:11434)
 //! - Fallback: OpenRouter API (qwen/qwen-2.5-72b-instruct:free)
-//!
-//! Features:
-//! - Arc-based thread safety
-//! - 2-second timeout for Ollama
-//! - Automatic failover
-//! - Anonymous requests (no PII)
 
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -17,16 +11,14 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-use crate::config::Config;
-
 /// AI Provider (which backend is active)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AiProvider {
     Ollama,
     OpenRouter,
 }
 
-/// AI Configuration
+/// AI Configuration (from environment)
 #[derive(Debug, Clone)]
 pub struct AiModelConfig {
     pub ollama_url: String,
@@ -44,7 +36,7 @@ impl Default for AiModelConfig {
             ollama_url: "http://127.0.0.1:11434".to_string(),
             ollama_model: "qwen2.5:7b".to_string(),
             openrouter_url: "https://openrouter.ai/api/v1".to_string(),
-            openrouter_api_key: String::new(),
+            openrouter_api_key: std::env::var("OPENROUTER_API_KEY").unwrap_or_default(),
             openrouter_model: "qwen/qwen-2.5-72b-instruct:free".to_string(),
             ollama_timeout_secs: 2, // STRICT 2-second timeout
             max_retries: 1,
@@ -53,15 +45,29 @@ impl Default for AiModelConfig {
 }
 
 impl AiModelConfig {
-    pub fn from_config(config: &Config) -> Self {
+    /// Load from environment variables
+    pub fn from_env() -> Self {
+        dotenvy::dotenv().ok(); // Load .env.local if exists
+        
         Self {
-            ollama_url: config.ollama_url.clone().unwrap_or_else(|| "http://127.0.0.1:11434".to_string()),
-            ollama_model: config.ollama_model.clone().unwrap_or_else(|| "qwen2.5:7b".to_string()),
-            openrouter_url: config.openrouter_url.clone().unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string()),
-            openrouter_api_key: config.openrouter_api_key.clone().unwrap_or_default(),
-            openrouter_model: config.openrouter_model.clone().unwrap_or_else(|| "qwen/qwen-2.5-72b-instruct:free".to_string()),
-            ollama_timeout_secs: config.ai_timeout_secs.unwrap_or(2),
-            max_retries: config.ai_max_retries.unwrap_or(1),
+            ollama_url: std::env::var("OLLAMA_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string()),
+            ollama_model: std::env::var("OLLAMA_MODEL")
+                .unwrap_or_else(|_| "qwen2.5:7b".to_string()),
+            openrouter_url: std::env::var("OPENROUTER_URL")
+                .unwrap_or_else(|_| "https://openrouter.ai/api/v1".to_string()),
+            openrouter_api_key: std::env::var("OPENROUTER_API_KEY")
+                .unwrap_or_default(),
+            openrouter_model: std::env::var("OPENROUTER_MODEL")
+                .unwrap_or_else(|_| "qwen/qwen-2.5-72b-instruct:free".to_string()),
+            ollama_timeout_secs: std::env::var("AI_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(2),
+            max_retries: std::env::var("AI_MAX_RETRIES")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(1),
         }
     }
 }
@@ -165,14 +171,14 @@ impl AiManager {
         // Ollama client with STRICT 2-second timeout
         let ollama_client = Client::builder()
             .timeout(Duration::from_secs(config.ollama_timeout_secs))
-            .user_agent("Liberty-Sovereign-AI/0.7.1")
+            .user_agent("Liberty-Sovereign-AI/0.7.2")
             .build()
             .expect("Failed to create Ollama HTTP client");
 
         // OpenRouter client with 30-second timeout
         let openrouter_client = Client::builder()
             .timeout(Duration::from_secs(30))
-            .user_agent("Liberty-Sovereign-AI/0.7.1")
+            .user_agent("Liberty-Sovereign-AI/0.7.2")
             .build()
             .expect("Failed to create OpenRouter HTTP client");
 
@@ -375,15 +381,16 @@ impl AiManager {
 }
 
 /// Start AI manager and return Arc
-pub fn start_ai_manager(config: Config) -> Arc<AiManager> {
-    let ai_config = AiModelConfig::from_config(&config);
+pub fn start_ai_manager() -> Arc<AiManager> {
+    let config = AiModelConfig::from_env();
     
     // Check if API key is configured
-    if ai_config.openrouter_api_key.is_empty() {
+    if config.openrouter_api_key.is_empty() {
         warn!("⚠️  OPENROUTER_API_KEY not set! AI fallback will fail.");
+        warn!("   Get a free key: https://openrouter.ai/keys");
     }
     
-    let manager = AiManager::new(ai_config);
+    let manager = AiManager::new(config);
     
     // Log initialization
     info!("🤖 AI Manager initialized");
