@@ -31,23 +31,16 @@ android {
     }
 
     // ========================================================================
-    // SIGNING CONFIGURATION
-    // Uses environment variables from GitHub Secrets
-    // Compatible with Flutter 3.24+ and Gradle 8.x
+    // SIGNING CONFIGURATION - RELATIVE PATHS ONLY
+    // Keystore must be at: android/app/upload-keystore.jks
+    // keyAlias = 'upload' (verified with Sofia)
     // ========================================================================
     signingConfigs {
         release {
-            // Use environment variables (set by GitHub Actions)
-            keyAlias System.getenv("KEY_ALIAS") ?: "upload"
+            keyAlias "upload"
             keyPassword System.getenv("KEY_PASSWORD")
             storePassword System.getenv("KEYSTORE_PASSWORD")
-            
-            // Determine store file path - works in CI and locally
-            def keystorePath = System.getenv("GITHUB_WORKSPACE") 
-                ? "${System.getenv("GITHUB_WORKSPACE")}/mobile/android/app/upload-keystore.jks"
-                : "upload-keystore.jks"
-            
-            storeFile file(keystorePath)
+            storeFile file("upload-keystore.jks")
         }
     }
 

@@ -86,15 +86,15 @@ jobs:
             echo "✅ lib/main.dart found"
           fi
 
-      # 5. Decode Keystore (using absolute path via ${{ github.workspace }})
+      # 5. Decode Keystore (RELATIVE PATH - android/app/upload-keystore.jks)
       - name: Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           echo "🔐 Decoding keystore from BASE64..."
-          mkdir -p ${{ github.workspace }}/mobile/android/app
-          echo "${KEYSTORE_BASE64}" | base64 --decode > ${{ github.workspace }}/mobile/android/app/upload-keystore.jks
-          ls -la ${{ github.workspace }}/mobile/android/app/upload-keystore.jks
+          mkdir -p android/app
+          echo "${KEYSTORE_BASE64}" | base64 --decode > android/app/upload-keystore.jks
+          ls -la android/app/upload-keystore.jks
 
       # 6. Export Environment Variables
       - name: Setup Environment Variables
@@ -111,13 +111,13 @@ jobs:
       # 7. Create key.properties (for Gradle)
       - name: Create key.properties
         run: |
-          cat > ${{ github.workspace }}/mobile/android/key.properties << EOF
+          cat > android/key.properties << EOF
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyAlias=upload
           storeFile=upload-keystore.jks
           EOF
-          cat ${{ github.workspace }}/mobile/android/key.properties
+          cat android/key.properties
 
       # 8. Build Flutter APK
       - name: Build Release APK
@@ -132,7 +132,7 @@ jobs:
           echo "🏗️ Building APK with explicit target..."
           flutter build apk --release --split-per-abi --target lib/main.dart
         env:
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_ALIAS: upload
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
@@ -142,7 +142,7 @@ jobs:
           echo "🏗️ Building App Bundle with explicit target..."
           flutter build appbundle --release --target lib/main.dart
         env:
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_ALIAS: upload
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
