@@ -220,6 +220,7 @@ jobs:
 
   # ============================================================================
   # Docker Build (Job 3 - runs after Rust)
+  # Uses GitHub Container Registry (GHCR) - no extra secrets needed!
   # ============================================================================
   build-docker:
     name: Build Docker Image
@@ -233,20 +234,20 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
-            zametkikostik/liberty-sovereign:latest
-            zametkikostik/liberty-sovereign:${{ github.sha }}
-          cache-from: type=registry,ref=zametkikostik/liberty-sovereign:buildcache
-          cache-to: type=registry,ref=zametkikostik/liberty-sovereign:buildcache,mode=max
+            ghcr.io/${{ github.repository }}/liberty-sovereign:latest
+            ghcr.io/${{ github.repository }}/liberty-sovereign:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/liberty-sovereign:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/liberty-sovereign:buildcache,mode=max
