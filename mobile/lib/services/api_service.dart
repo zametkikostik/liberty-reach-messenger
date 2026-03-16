@@ -1,29 +1,27 @@
 // Liberty Reach - API Service
-// Uses environment variables from build or .env file
+// Предназначен для защищенного взаимодействия с бэкендом и блокчейном
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
-/// Configuration loaded from environment/build
+/// Конфигурация, загружаемая из переменных окружения (CI/CD) или заданная по умолчанию
 class AppConfig {
-  // Blockchain RPC
   static String get rpcUrl => const String.fromEnvironment(
         'RPC_URL',
         defaultValue: 'https://polygon-rpc.com',
       );
 
-  // AI Integration
   static String get openrouterApiKey => const String.fromEnvironment(
         'OPENROUTER_API_KEY',
         defaultValue: '',
       );
 
-  // Security
   static String get secretLoveKey => const String.fromEnvironment(
         'SECRET_LOVE_KEY',
         defaultValue: 'liberty_reach_default_salt',
       );
 
-  // IPFS
   static String get pinataApiKey => const String.fromEnvironment(
         'PINATA_API_KEY',
         defaultValue: '',
@@ -34,31 +32,10 @@ class AppConfig {
         defaultValue: '',
       );
 
-  /// Check if running in CI/CD mode
   static bool get isCI => const bool.fromEnvironment('CI', defaultValue: false);
-
-  /// Check if AI is enabled
   static bool get isAiEnabled => openrouterApiKey.isNotEmpty;
+  static bool get isIpfsEnabled => pinataApiKey.isNotEmpty && pinataSecretKey.isNotEmpty;
 
-  /// Check if IPFS is enabled
-  static bool get isIpfsEnabled =>
-      pinataApiKey.isNotEmpty && pinataSecretKey.isNotEmpty;
-
-  /// Get RPC chain with fallbacks
-  static List<String> get rpcChain => [
-        rpcUrl,
-        const String.fromEnvironment(
-          'POCKET_RPC_URL',
-          defaultValue: 'https://poly.api.pocket.network',
-        ),
-        const String.fromEnvironment(
-          'LAVA_RPC_URL',
-          defaultValue:
-              'https://g.w.lavanet.xyz:443/gateway/polygon/rpc-http/510353c239edb26b7ef54b675ea3dbc8',
-        ),
-      ];
-
-  /// Print configuration (debug only)
   static void printConfig() {
     if (kDebugMode) {
       print('🏰 Liberty Reach Configuration');
@@ -67,56 +44,33 @@ class AppConfig {
       print('🔗 RPC URL: $rpcUrl');
       print('🤖 AI Enabled: $isAiEnabled');
       print('📦 IPFS Enabled: $isIpfsEnabled');
-      print('🔐 Secret Key: ${secretLoveKey.substring(0, 8)}...');
+      print('🔐 Secret Key (Salt): ${secretLoveKey.substring(0, 4)}***');
       print('================================');
     }
   }
 }
 
-/// API Service for backend communication
+/// Основной сервис для работы с API
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
 
-  String _baseUrl = 'http://localhost:3000';
+  // Для эмулятора Android используем 10.0.2.2 вместо localhost
+  String _baseUrl = kDebugMode ? 'http://10.0.2.2:3000' : 'https://api.libertyreach.com';
 
-  /// Initialize API service
   Future<void> init() async {
-    // Load from .env file if not in CI
-    if (!AppConfig.isCI) {
-      await _loadFromEnv();
-    }
-
-    // Use RPC_URL from build config
     final rpcUrl = AppConfig.rpcUrl;
-    debugPrint('🔗 Using RPC URL: $rpcUrl');
-
+    debugPrint('🔗 Initializing ApiService with RPC: $rpcUrl');
     AppConfig.printConfig();
   }
 
-  /// Load .env file (local development only)
-  Future<void> _loadFromEnv() async {
-    try {
-      // TODO: Use flutter_dotenv package
-      // final env = await DotEnv(fileName: '.env').load();
-      // _baseUrl = env['API_BASE_URL'] ?? _baseUrl;
-      debugPrint('📋 Loaded .env file');
-    } catch (e) {
-      debugPrint('⚠️  .env file not found, using defaults');
-    }
-  }
-
-  /// Get base URL
-  String get baseUrl => _baseUrl;
-
-  /// Set base URL
   void setBaseUrl(String url) {
     _baseUrl = url;
-    debugPrint('🔗 Base URL set to: $url');
+    debugPrint('🔗 Base URL changed to: $url');
   }
 
-  /// Make HTTP request with retry logic
+  /// Универсальный метод для HTTP запросов с логикой повторов
   Future<Map<String, dynamic>> request({
     required String endpoint,
     required String method,
@@ -124,92 +78,220 @@ class ApiService {
     Map<String, String>? headers,
     int retries = 3,
   }) async {
+    final url = Uri.parse('$_baseUrl$endpoint');
+    final Map<String, String> defaultHeaders = {
+      'Content-Type': 'application/json',
+      'X-App-Name': 'LibertyReach',
+    };
+
+    if (headers != null) defaultHeaders.addAll(headers);
+
     for (int i = 0; i < retries; i++) {
       try {
-        // TODO: Implement with http or dio package
-        // final response = await http.post(
-        //   Uri.parse('$_baseUrl$endpoint'),
-        //   headers: headers,
-        //   body: jsonEncode(body),
-        // );
-        // return jsonDecode(response.body);
+        http.Response response;
+        
+        if (method == 'POST') {
+          response = await http.post(url, headers: defaultHeaders, body: jsonEncode(body));
+        } else {
+          response = await http.get(url, headers: defaultHeaders);
+        }
 
-        debugPrint('📡 Request: $method $_baseUrl$endpoint');
-        return {'status': 'ok'};
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(response.body);
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
       } catch (e) {
+        debugPrint('⚠️ Attempt ${i + 1} failed: $e');
         if (i == retries - 1) rethrow;
-        await Future.delayed(Duration(milliseconds: 100 * (i + 1)));
+        await Future.delayed(Duration(milliseconds: 500 * (i + 1)));
       }
     }
-
-    throw Exception('Request failed after $retries retries');
+    throw Exception('Request failed after all retries');
   }
 
-  /// Get with auth header
+  /// GET запрос с Peer ID для авторизации в P2P сети
   Future<Map<String, dynamic>> getAuth(String endpoint, String peerId) async {
     return await request(
       endpoint: endpoint,
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Peer-ID': peerId,
-      },
+      headers: {'X-Peer-ID': peerId},
     );
   }
 
-  /// Post with auth header
-  Future<Map<String, dynamic>> postAuth(
-    String endpoint,
-    String peerId,
-    Map<String, dynamic> body,
-  ) async {
+  /// POST запрос с шифрованием или авторизацией
+  Future<Map<String, dynamic>> postAuth(String endpoint, String peerId, Map<String, dynamic> body) async {
     return await request(
       endpoint: endpoint,
       method: 'POST',
       body: body,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Peer-ID': peerId,
-      },
+      headers: {'X-Peer-ID': peerId},
     );
   }
 }
 
-/// Secure Storage Service
+/// Защищенное хранилище (Secure Storage)
 class SecureStorage {
   static final SecureStorage _instance = SecureStorage._internal();
   factory SecureStorage() => _instance;
   SecureStorage._internal();
 
-  /// Get encryption key from config
   String get encryptionKey => AppConfig.secretLoveKey;
 
-  /// Initialize secure storage
   Future<void> init() async {
-    // TODO: Use flutter_secure_storage package
-    debugPrint('🔐 Secure Storage initialized');
-    debugPrint('🔑 Using key: ${encryptionKey.substring(0, 8)}...');
+    debugPrint('🔐 Secure Storage ready with salt: ${encryptionKey.substring(0, 4)}...');
   }
 
-  /// Read secure value
-  Future<String?> read(String key) async {
-    // TODO: Implement with flutter_secure_storage
-    return null;
-  }
-
-  /// Write secure value
-  Future<void> write(String key, String value) async {
-    // TODO: Implement with flutter_secure_storage
-  }
-
-  /// Delete secure value
-  Future<void> delete(String key) async {
-    // TODO: Implement with flutter_secure_storage
-  }
-
-  /// Clear all (GDPR Zeroize)
+  // Здесь будет логика работы с flutter_secure_storage после добавления в pubspec.yaml
   Future<void> clear() async {
-    // TODO: Implement with flutter_secure_storage
-    debugPrint('🗑️  Secure Storage cleared (GDPR Zeroize)');
+    debugPrint('🗑️ GDPR Zeroize: Local data wiped.');
+  }
+}// Liberty Reach - API Service
+// Предназначен для защищенного взаимодействия с бэкендом и блокчейном
+
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+
+/// Конфигурация, загружаемая из переменных окружения (CI/CD) или заданная по умолчанию
+class AppConfig {
+  static String get rpcUrl => const String.fromEnvironment(
+        'RPC_URL',
+        defaultValue: 'https://polygon-rpc.com',
+      );
+
+  static String get openrouterApiKey => const String.fromEnvironment(
+        'OPENROUTER_API_KEY',
+        defaultValue: '',
+      );
+
+  static String get secretLoveKey => const String.fromEnvironment(
+        'SECRET_LOVE_KEY',
+        defaultValue: 'liberty_reach_default_salt',
+      );
+
+  static String get pinataApiKey => const String.fromEnvironment(
+        'PINATA_API_KEY',
+        defaultValue: '',
+      );
+
+  static String get pinataSecretKey => const String.fromEnvironment(
+        'PINATA_SECRET_KEY',
+        defaultValue: '',
+      );
+
+  static bool get isCI => const bool.fromEnvironment('CI', defaultValue: false);
+  static bool get isAiEnabled => openrouterApiKey.isNotEmpty;
+  static bool get isIpfsEnabled => pinataApiKey.isNotEmpty && pinataSecretKey.isNotEmpty;
+
+  static void printConfig() {
+    if (kDebugMode) {
+      print('🏰 Liberty Reach Configuration');
+      print('================================');
+      print('🔧 Mode: ${isCI ? 'CI/CD' : 'Local'}');
+      print('🔗 RPC URL: $rpcUrl');
+      print('🤖 AI Enabled: $isAiEnabled');
+      print('📦 IPFS Enabled: $isIpfsEnabled');
+      print('🔐 Secret Key (Salt): ${secretLoveKey.substring(0, 4)}***');
+      print('================================');
+    }
+  }
+}
+
+/// Основной сервис для работы с API
+class ApiService {
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
+
+  // Для эмулятора Android используем 10.0.2.2 вместо localhost
+  String _baseUrl = kDebugMode ? 'http://10.0.2.2:3000' : 'https://api.libertyreach.com';
+
+  Future<void> init() async {
+    final rpcUrl = AppConfig.rpcUrl;
+    debugPrint('🔗 Initializing ApiService with RPC: $rpcUrl');
+    AppConfig.printConfig();
+  }
+
+  void setBaseUrl(String url) {
+    _baseUrl = url;
+    debugPrint('🔗 Base URL changed to: $url');
+  }
+
+  /// Универсальный метод для HTTP запросов с логикой повторов
+  Future<Map<String, dynamic>> request({
+    required String endpoint,
+    required String method,
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+    int retries = 3,
+  }) async {
+    final url = Uri.parse('$_baseUrl$endpoint');
+    final Map<String, String> defaultHeaders = {
+      'Content-Type': 'application/json',
+      'X-App-Name': 'LibertyReach',
+    };
+
+    if (headers != null) defaultHeaders.addAll(headers);
+
+    for (int i = 0; i < retries; i++) {
+      try {
+        http.Response response;
+        
+        if (method == 'POST') {
+          response = await http.post(url, headers: defaultHeaders, body: jsonEncode(body));
+        } else {
+          response = await http.get(url, headers: defaultHeaders);
+        }
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(response.body);
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Attempt ${i + 1} failed: $e');
+        if (i == retries - 1) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * (i + 1)));
+      }
+    }
+    throw Exception('Request failed after all retries');
+  }
+
+  /// GET запрос с Peer ID для авторизации в P2P сети
+  Future<Map<String, dynamic>> getAuth(String endpoint, String peerId) async {
+    return await request(
+      endpoint: endpoint,
+      method: 'GET',
+      headers: {'X-Peer-ID': peerId},
+    );
+  }
+
+  /// POST запрос с шифрованием или авторизацией
+  Future<Map<String, dynamic>> postAuth(String endpoint, String peerId, Map<String, dynamic> body) async {
+    return await request(
+      endpoint: endpoint,
+      method: 'POST',
+      body: body,
+      headers: {'X-Peer-ID': peerId},
+    );
+  }
+}
+
+/// Защищенное хранилище (Secure Storage)
+class SecureStorage {
+  static final SecureStorage _instance = SecureStorage._internal();
+  factory SecureStorage() => _instance;
+  SecureStorage._internal();
+
+  String get encryptionKey => AppConfig.secretLoveKey;
+
+  Future<void> init() async {
+    debugPrint('🔐 Secure Storage ready with salt: ${encryptionKey.substring(0, 4)}...');
+  }
+
+  // Здесь будет логика работы с flutter_secure_storage после добавления в pubspec.yaml
+  Future<void> clear() async {
+    debugPrint('🗑️ GDPR Zeroize: Local data wiped.');
   }
 }

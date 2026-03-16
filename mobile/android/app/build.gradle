@@ -1,80 +1,131 @@
+name: Liberty Reach Hybrid Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  # 📱 Собираем Android (Flutter)
+  build-android:
+    name: Build Flutter APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Decode Keystore
+        run: |
+          mkdir -p android/app
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Build Release APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: liberty-reach-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+
+  # 🚀 Создаем Релиз в GitHub (только при пуше тега)
+  publish:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: liberty-reach-apk/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
-        localProperties.load(reader)
-    }
-}
-
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
-}
-
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
-if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
-}
-
-// Load keystore properties from key.properties
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
-if (keystorePropertiesFile.exists()) {
-    keystorePropertiesFile.withReader('UTF-8') { reader ->
-        keystoreProperties.load(reader)
-    }
-}
-
 android {
-    namespace "com.example.liberty_reach"
-    compileSdk flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
+    namespace "com.zametkikostik.liberty_reach"
+    compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.liberty_reach"
-        minSdk flutter.minSdkVersion
-        targetSdk flutter.targetSdkVersion
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        applicationId "com.zametkikostik.liberty_reach"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "0.4.0"
     }
 
     signingConfigs {
         release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
+            keyAlias System.getenv("KEY_ALIAS") ?: "upload"
+            keyPassword System.getenv("KEY_PASSWORD")
+            storeFile file("upload-keystore.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD")
         }
     }
 
     buildTypes {
         release {
             signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }
 
-flutter {
-    source '../..'
-}
-
 dependencies {}
+name: liberty_reach_messenger
+description: "A secure, decentralized messenger - Liberty Reach."
+publish_to: 'none'
+version: 0.4.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  http: ^1.1.0
+  flutter_secure_storage: ^9.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
