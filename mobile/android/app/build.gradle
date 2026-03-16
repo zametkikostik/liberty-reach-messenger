@@ -24,10 +24,13 @@ android {
 
     defaultConfig {
         applicationId "com.zametkikostik.liberty_reach"
-        minSdk 21
+        minSdk 26  // Required for flutter_webrtc and Tor
         targetSdk 34
         versionCode 1
-        versionName "0.4.0"
+        versionName "0.6.0"
+        
+        // MultiDex for Tor and WebRTC dependencies
+        multiDexEnabled true
     }
 
     // ========================================================================
@@ -57,4 +60,13 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    // 🧅 Tor integration for Android
+    implementation 'org.torproject:tor-android-binary:0.4.7.10'
+    
+    // MultiDex support
+    implementation 'androidx.multidex:multidex:2.0.1'
+    
+    // WebRTC dependencies (included via flutter_webrtc)
+    // implementation 'org.webrtc:google-webrtc:1.0.32006'
+}

@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 /// IdentityService для взаимодействия с Cloudflare Worker
-/// 
-/// Backend URL: https://a-love-story.zametkikostik.workers.dev
+///
+/// Backend URL: https://a-love-story-js.zametkikostik.workers.dev (v0.6.0)
+/// Features: Immutable Love Protocol, Encrypted Messages, D1 Storage
 class IdentityService {
-  // Cloudflare Worker URL
-  static const String _baseUrl = 'https://a-love-story.zametkikostik.workers.dev';
+  // Cloudflare Worker URL - JavaScript Worker with D1
+  static const String _baseUrl = 'https://a-love-story-js.zametkikostik.workers.dev';
   
   final http.Client _client = http.Client();
   

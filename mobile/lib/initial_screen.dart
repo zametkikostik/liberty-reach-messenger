@@ -3,8 +3,12 @@ import 'core/crypto_service.dart';
 import 'services/identity_service.dart';
 
 /// InitialScreen — первый экран приложения
-/// 
+///
 /// Генерирует ключи Ed25519 и регистрирует пользователя на бэкенде
+/// 
+/// Backend: JavaScript Worker v0.6.0
+/// URL: https://a-love-story-js.zametkikostik.workers.dev
+/// Features: Immutable Love Protocol, D1 Storage, Encrypted Messages
 class InitialScreen extends StatefulWidget {
   const InitialScreen({super.key});
 
