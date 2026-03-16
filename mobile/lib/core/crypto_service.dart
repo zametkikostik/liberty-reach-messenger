@@ -14,7 +14,6 @@ class CryptoService {
   
   /// Получить публичный ключ в Base64 формате
   Future<String> getPublicKeyBase64() async {
-    // Проверяем, есть ли сохранённый ключ
     final existingPublicKey = await _secureStorage.read(key: _publicKeyKey);
     if (existingPublicKey != null) {
       return existingPublicKey;
@@ -23,8 +22,9 @@ class CryptoService {
     // Генерируем новую пару ключей
     final keyPair = await _algorithm.newKeyPair();
     
-    // Получаем байты публичного ключа через bytes getter
-    final publicKeyBytes = keyPair.bytes;
+    // Получаем публичный ключ через publicKey и его bytes
+    final publicKey = await keyPair.extractPublicKey();
+    final publicKeyBytes = publicKey.bytes;
     final publicKeyBase64 = base64Encode(publicKeyBytes);
     
     // Получаем приватный ключ
