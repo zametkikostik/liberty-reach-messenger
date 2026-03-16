@@ -3,12 +3,14 @@
 
 mod admin_handlers;
 mod ai_guard;
+mod ai_engine;
 mod chat_types;
 mod config;
 mod files;
 mod geo;
 mod hybrid_moderation;
 mod media_handlers;
+mod network;
 mod profiles;
 mod social;
 mod storage_manager;
@@ -50,6 +52,12 @@ use wallet::{WalletManager, WalletConfig, BalanceInfo, DecentralizedProvider};
 
 // Модуль ai_guard
 use ai_guard::{AiGuard, AiGuardConfig, EncryptedCircle, ViolationType};
+
+// Модуль ai_engine
+use ai_engine::{AiManager, AiRequest, start_ai_manager};
+
+// Модуль network
+use network::{NetworkManager, NetworkEvent, start_p2p_network};
 
 // ChaCha20Poly1305 для шифрования
 use chacha20poly1305::{
@@ -199,10 +207,12 @@ struct AppState {
     gossip_tx: Arc<RwLock<Option<mpsc::Sender<(String, Vec<u8>)>>>>,
     decentralized_provider: Option<Arc<DecentralizedProvider>>,
     ai_guard: Arc<AiGuard>,
+    ai_manager: Arc<AiManager>,
     storage_manager: Arc<storage_manager::StorageManager>,
     admin_peer_id: String,
     social_manager: Arc<social::SocialManager>,
     geo_manager: Arc<geo::GeoManager>,
+    network_manager: Option<Arc<RwLock<NetworkManager>>>,
 }
 
 #[derive(NetworkBehaviour)]
@@ -1001,6 +1011,56 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let geo_manager = Arc::new(geo::GeoManager::new(db_arc.blocking_read().clone().into()));
     println!("🌍 Geo Manager инициализирован (GPS + LBS + SOS)");
 
+    // Инициализация AI Manager (Hybrid: Ollama + OpenRouter)
+    let ai_manager = start_ai_manager(config.clone());
+    println!("🤖 AI Manager инициализирован (Ollama + OpenRouter failover)");
+
+    // Инициализация Network Manager (P2P с Kademlia + Relay)
+    let identity_keypair = libp2p::identity::ed25519::Keypair::from_bytes(&identity.secret().to_bytes()).unwrap();
+    let (network_event_tx, mut network_event_rx) = tokio::sync::mpsc::channel(100);
+    
+    let network_manager = match start_p2p_network(
+        config.clone(),
+        identity_keypair,
+        network_event_tx,
+    ).await {
+        Ok(manager) => {
+            println!("📡 P2P Network Manager инициализирован");
+            Some(manager)
+        }
+        Err(e) => {
+            eprintln!("⚠️  P2P Network не инициализирован: {}", e);
+            None
+        }
+    };
+
+    // Обработка P2P событий в фоне
+    if let Some(ref nm) = network_manager {
+        let ai_mgr = Arc::clone(&ai_manager);
+        let nm_clone = Arc::clone(nm);
+        tokio::spawn(async move {
+            while let Some(event) = network_event_rx.recv().await {
+                match event {
+                    NetworkEvent::MessageReceived { from, data } => {
+                        // Автоматическая обработка входящих сообщений через AI
+                        if let Ok(msg) = String::from_utf8(data.clone()) {
+                            if let Ok(ai_response) = ai_mgr.process_incoming_message(&msg, None).await {
+                                println!("🤖 AI suggestion for message from {}: {}", from, ai_response.content);
+                            }
+                        }
+                    }
+                    NetworkEvent::HandshakeComplete { peer_id, shared_secret } => {
+                        println!("🔐 Handshake complete with {}: shared_secret={:?}", peer_id, &shared_secret[..8]);
+                        // Сохранить shared_secret для E2EE
+                        let mut manager = nm_clone.write().await;
+                        manager.shared_secrets.insert(peer_id, shared_secret);
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
+
     let app_state = AppState {
         db: db_arc.clone(),
         local_peer_id: Arc::new(RwLock::new(local_peer_id)),
@@ -1012,10 +1072,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         gossip_tx: gossip_tx_arc.clone(),
         decentralized_provider: dec_provider,
         ai_guard: ai_guard.clone(),
+        ai_manager: ai_manager.clone(),
         storage_manager: storage_manager.clone(),
         admin_peer_id: admin_peer_id.clone(),
         social_manager: social_manager.clone(),
         geo_manager: geo_manager.clone(),
+        network_manager: network_manager.clone(),
     };
 
     // 8. Запуск HTTP сервера в отдельной задаче
