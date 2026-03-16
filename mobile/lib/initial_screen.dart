@@ -19,6 +19,7 @@ class _InitialScreenState extends State<InitialScreen> {
   bool _isLoading = false;
   String _status = 'Press button to start';
   String _userId = '';
+  String _shortUserId = '';
   String _publicKey = '';
   
   @override
@@ -49,6 +50,7 @@ class _InitialScreenState extends State<InitialScreen> {
       if (response['success'] == true) {
         setState(() {
           _userId = response['user_id'] ?? '';
+          _shortUserId = response['short_user_id'] ?? '';
           _status = '✅ Registration complete!';
         });
         
@@ -79,15 +81,26 @@ class _InitialScreenState extends State<InitialScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Your User ID:'),
+            const Text(
+              'Your User ID:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             SelectableText(
               _userId,
-              style: const TextStyle(fontFamily: 'monospace'),
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Short ID: $_shortUserId',
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
             ),
             const SizedBox(height: 16),
-            Text('Public Key (first 32 chars):'),
+            const Text(
+              'Public Key (Base64):',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             SelectableText(
-              '${_publicKey.substring(0, 32)}...',
+              _publicKey,
               style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
             ),
           ],

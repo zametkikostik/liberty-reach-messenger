@@ -11,6 +11,10 @@ class IdentityService {
   final http.Client _client = http.Client();
   
   /// Зарегистрировать пользователя на бэкенде
+  ///
+  /// POST /register
+  /// Request: {"public_key": "<Base64-encoded 32 bytes>"}
+  /// Response: {"user_id": "...", "short_user_id": "...", "success": true/false}
   Future<Map<String, dynamic>> registerUser(String publicKeyBase64) async {
     try {
       final response = await _client.post(
@@ -18,10 +22,9 @@ class IdentityService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'public_key': publicKeyBase64,
-          'username_hash': null,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
