@@ -6,6 +6,12 @@ compatibility_date = "2024-01-01"
 [build]
 command = "cargo install -q worker-build && worker-build --release"
 
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "liberty-db"
+database_id = "7713033b-1f5c-4f2c-9123-b1c989869035"
+
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
