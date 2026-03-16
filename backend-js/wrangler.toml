@@ -1,0 +1,25 @@
+name = "a-love-story-js"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "liberty-db"
+database_id = "7713033b-1f5c-4f2c-9123-b1c989869035"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+
+# Development settings
+[dev]
+port = 8788
+local_protocol = "http"
+
+# Production environment
+[env.production]
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "liberty-db"
+database_id = "7713033b-1f5c-4f2c-9123-b1c989869035"

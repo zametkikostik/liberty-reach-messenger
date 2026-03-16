@@ -1,0 +1,20 @@
+{
+  "name": "a-love-story-js",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker with D1 - JavaScript implementation",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "tweetnacl-wasm": "^1.0.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "keywords": ["cloudflare", "worker", "d1", "ed25519"],
+  "author": "Liberty Reach",
+  "license": "MIT"
+}

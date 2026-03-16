@@ -2,7 +2,7 @@
 name = "a-love-story"
 version = "0.1.0"
 edition = "2021"
-description = "Cloudflare Worker backend for Liberty Reach Messenger"
+description = "Cloudflare Worker backend for Liberty Reach Messenger (Rust WASM)"
 
 [lib]
 crate-type = ["cdylib"]
@@ -17,7 +17,6 @@ ed25519-dalek = { version = "2.1", features = ["serde"] }
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde-wasm-bindgen = "0.6"
 
 # Hashing
 sha2 = "0.10"
@@ -33,7 +32,5 @@ getrandom = { version = "0.2", features = ["js"] }
 # Debugging
 console_error_panic_hook = "0.1"
 
-# WASM bindings for D1
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-js-sys = "0.3"
+# Note: D1 integration available via JavaScript Worker (backend-js/)
+# wasm-bindgen dependencies removed for optimized stateless version
