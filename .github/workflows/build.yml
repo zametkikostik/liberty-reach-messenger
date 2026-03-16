@@ -247,7 +247,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/liberty-sovereign:latest
-            ghcr.io/${{ github.repository }}/liberty-sovereign:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/liberty-sovereign:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/liberty-sovereign:buildcache,mode=max
+            ghcr.io/${{ github.repository_owner }}/liberty-sovereign:latest
+            ghcr.io/${{ github.repository_owner }}/liberty-sovereign:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/liberty-sovereign:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/liberty-sovereign:buildcache,mode=max
