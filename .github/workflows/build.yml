@@ -131,12 +131,20 @@ jobs:
           flutter pub get
           echo "🏗️ Building APK with explicit target..."
           flutter build apk --release --split-per-abi --target lib/main.dart
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
       # 9. Build App Bundle
       - name: Build App Bundle
         run: |
           echo "🏗️ Building App Bundle with explicit target..."
           flutter build appbundle --release --target lib/main.dart
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
       # 10. Upload Artifacts (using absolute paths)
       - name: Upload APK Artifacts
