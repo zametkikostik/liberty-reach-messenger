@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace "com.zametkikostik.liberty_reach"
-    compileSdk 36
+    compileSdk 34
     ndkVersion "25.1.8937393"
 
     compileOptions {
@@ -24,10 +24,10 @@ android {
 
     defaultConfig {
         applicationId "com.zametkikostik.liberty_reach"
-        minSdk 26
-        targetSdk 36
+        minSdk 21
+        targetSdk 34
         versionCode 1
-        versionName "0.7.5"
+        versionName "0.8.0"
         multiDexEnabled true
     }
 

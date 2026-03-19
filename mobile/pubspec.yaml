@@ -49,8 +49,8 @@ dependencies:
   # record: ^5.0.4  # Build issues, use native implementation
   audioplayers: ^5.2.1
   
-  # WebRTC (Video calls)
-  flutter_webrtc: ^0.9.38  # Stable version without build issues
+  # WebRTC (Video calls) - Stable version
+  flutter_webrtc: ^0.9.38
 
   # GIF Picker (using http instead)
   # giphy_dart: ^2.0.0  # Not available, using direct API
