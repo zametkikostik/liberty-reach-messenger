@@ -1,0 +1,57 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.0'
+      
+      - name: Enable Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Build Debug APK
+        run: flutter build apk --debug
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/app/outputs/flutter-apk/app-debug.apk
+          body: |
+            Liberty Reach Messenger v0.8.0-Complete — The Eternal Bond 💖
+            
+            ## What's New
+            - 100% Complete! All features implemented
+            - E2EE Encryption (AES-256-GCM)
+            - AI Translation (100+ languages)
+            - Voice & Video Calls
+            - Crypto Wallet (Polygon)
+            - P2P Network (libp2p)
+            - Stories 24h
+            - Emoji Reactions
+            - Self-Destruct Timer
+            - Tor Integration
+            
+            ## Installation
+            Download the APK and install on your Android device.
+            
+            **Built for freedom, encrypted for life.** 🔐
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

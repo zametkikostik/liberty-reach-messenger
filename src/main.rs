@@ -17,11 +17,12 @@ use libp2p::{
     identity,
     kad::{self, store::MemoryStore},
     mdns,
-    swarm::{NetworkBehaviour, SwarmEvent},
+    swarm::{NetworkBehaviour, SwarmEvent, StreamProtocol},
     tcp, yamux, noise,
     PeerId, Swarm, Transport,
     core::transport::upgrade::Version,
 };
+use sha2::Digest;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -99,8 +100,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(40000);
-    
-    let listen_addr = format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse()?;
+
+    let listen_addr: libp2p::Multiaddr = format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse()?;
     
     match swarm.listen_on(listen_addr.clone()) {
         Ok(_) => info!("📡 Listening on: {}", listen_addr),
@@ -328,7 +329,7 @@ async fn process_swarm_event(
 fn create_swarm(
     keypair: &identity::Keypair,
     local_peer_id: PeerId,
-    transport: libp2p::core::transport::Boxed<(PeerId, libp2p::core::muxing::StreamBoxed)>,
+    transport: libp2p::core::transport::Boxed<(PeerId, libp2p::core::muxing::StreamMuxerBox)>,
 ) -> Result<Swarm<LibertyBehaviour>, Box<dyn Error>> {
     // Gossipsub configuration
     let gossipsub_config = gossipsub::ConfigBuilder::default()
@@ -355,7 +356,7 @@ fn create_swarm(
 
     // Kademlia configuration
     let mut kademlia_config = kad::Config::default();
-    kademlia_config.set_protocol_names(vec!["/liberty-sovereign/kad/1.0.0".into()]);
+    kademlia_config.set_protocol_names(vec![StreamProtocol::new("/liberty-sovereign/kad/1.0.0")]);
 
     let store = MemoryStore::new(local_peer_id);
     let mut kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);

@@ -204,7 +204,7 @@ https://github.com/zametkikostik/liberty-reach-messenger
 
 **Konstantin** — Decentralized Systems Developer
 
-- **Email:** intelligent.swallow.aybm@mask.me
+- **Email:** zametkikostik@gmail.com
 ```
 
 ---

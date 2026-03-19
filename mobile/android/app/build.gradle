@@ -1,13 +1,13 @@
 plugins {
     id "com.android.application"
-    id "kotlin-android"
+    id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
 android {
     namespace "com.zametkikostik.liberty_reach"
-    compileSdk 34
-    ndkVersion flutter.ndkVersion
+    compileSdk 36
+    ndkVersion "25.1.8937393"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -24,20 +24,13 @@ android {
 
     defaultConfig {
         applicationId "com.zametkikostik.liberty_reach"
-        minSdk 26  // Required for flutter_webrtc and Tor
-        targetSdk 34
+        minSdk 26
+        targetSdk 36
         versionCode 1
-        versionName "0.6.0"
-        
-        // MultiDex for Tor and WebRTC dependencies
+        versionName "0.7.5"
         multiDexEnabled true
     }
 
-    // ========================================================================
-    // SIGNING CONFIGURATION - RELATIVE PATHS ONLY
-    // Keystore must be at: android/app/upload-keystore.jks
-    // keyAlias = 'upload' (verified with Sofia)
-    // ========================================================================
     signingConfigs {
         release {
             keyAlias "upload"
@@ -53,6 +46,9 @@ android {
             minifyEnabled false
             shrinkResources false
         }
+        debug {
+            signingConfig signingConfigs.debug
+        }
     }
 }
 
@@ -61,12 +57,10 @@ flutter {
 }
 
 dependencies {
-    // 🧅 Tor integration for Android
-    implementation 'org.torproject:tor-android-binary:0.4.7.10'
-    
+    // 🧅 Tor Android (Guardian Project - Latest Stable 0.4.9.5)
+    implementation 'info.guardianproject:tor-android:0.4.9.5'
+    implementation 'info.guardianproject:jtorctl:0.4.5.7'
+
     // MultiDex support
     implementation 'androidx.multidex:multidex:2.0.1'
-    
-    // WebRTC dependencies (included via flutter_webrtc)
-    // implementation 'org.webrtc:google-webrtc:1.0.32006'
 }

@@ -272,7 +272,7 @@ secret_key.zeroize(); // Уничтожение в памяти
 
 **Разработчик:** Konstantin — Decentralized Systems Developer
 
-- **Email:** intelligent.swallow.aybm@mask.me
+- **Email:** zametkikostik@gmail.com
 
 **Адрес для корреспонденции (Болгария):**
 ```

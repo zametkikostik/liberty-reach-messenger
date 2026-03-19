@@ -19,15 +19,10 @@ class SecureStorageService {
   // Secure storage with hardware-backed encryption
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,  // Extra encryption layer
-      resetOnError: false,               // Don't wipe on error
-      preferencesName: 'liberty_secure', // Custom prefs name
-      keyAlias: 'liberty_master_key',    // Master key alias
+      encryptedSharedPreferences: true,
     ),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
-      groupId: 'group.com.zametkikostik.libertyreach',
-      accountName: 'liberty_reach',
     ),
   );
 
@@ -92,26 +87,26 @@ class SecureStorageService {
   /// Uses Random.secure() for cryptographically secure random data
   Future<void> secureWipe() async {
     final secureRandom = Random.secure();
-    
+
     // Pass 1: Overwrite with random data
     for (int i = 0; i < 3; i++) {
       final randomData = List<int>.generate(
         256,
         (_) => secureRandom.nextInt(256),
       );
-      
+
       await _storage.write(
         key: 'wipe_pass_$i',
         value: base64Encode(randomData),
       );
-      
+
       // Small delay between passes
       await Future.delayed(const Duration(milliseconds: 10));
     }
-    
+
     // Delete all data
     await _storage.deleteAll();
-    
+
     // Final overwrite
     await _storage.write(
       key: 'wipe_complete',
@@ -120,7 +115,7 @@ class SecureStorageService {
         (_) => secureRandom.nextInt(256),
       )),
     );
-    
+
     await _storage.deleteAll();
   }
 

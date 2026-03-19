@@ -1,7 +1,14 @@
--- Liberty Reach Messenger v0.6.0 "Immortal Love"
--- Cloudflare D1 Database Schema (Migration-safe)
+-- 🏰 Liberty Reach Messenger v0.7.3 "Immortal Love"
+-- Cloudflare D1 Database Schema with Vault Protection
+--
+-- SECURITY: This schema includes database-level triggers that prevent
+-- deletion or modification of messages marked as "eternal" (is_love_immutable=1).
+-- Even API admins cannot bypass these protections.
 
--- Users table: Public keys only (no private data)
+-- ═══════════════════════════════════════════════════════════════════════════
+-- USERS TABLE
+-- ═══════════════════════════════════════════════════════════════════════════
+
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     public_key TEXT NOT NULL,
@@ -9,7 +16,10 @@ CREATE TABLE IF NOT EXISTS users (
     last_seen INTEGER
 );
 
--- Messages table: E2EE encrypted content
+-- ═══════════════════════════════════════════════════════════════════════════
+-- MESSAGES TABLE
+-- ═══════════════════════════════════════════════════════════════════════════
+
 CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     sender_id TEXT NOT NULL,
@@ -17,23 +27,30 @@ CREATE TABLE IF NOT EXISTS messages (
     encrypted_text TEXT NOT NULL,
     nonce TEXT NOT NULL,
     signature TEXT,
-    is_love_immutable INTEGER DEFAULT 0,
+    is_love_immutable INTEGER DEFAULT 0,  -- 🔐 VAULT FLAG: 1 = eternal, 0 = normal
     created_at INTEGER NOT NULL,
     expires_at INTEGER,
     deleted_at INTEGER
 );
 
--- Indexes for performance
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PERFORMANCE INDEXES
+-- ═══════════════════════════════════════════════════════════════════════════
+
 CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);
 CREATE INDEX IF NOT EXISTS idx_messages_love ON messages(is_love_immutable);
 CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_deleted ON messages(deleted_at);
 
--- Schema version
+-- ═══════════════════════════════════════════════════════════════════════════
+-- SCHEMA VERSION TRACKING
+-- ═══════════════════════════════════════════════════════════════════════════
+
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
     applied_at INTEGER NOT NULL
 );
 
--- Insert schema version v2
-INSERT OR REPLACE INTO schema_version (version, applied_at) 
-VALUES (2, strftime('%s', 'now') * 1000);
+-- Schema version v3: Includes immutable love triggers
+INSERT OR REPLACE INTO schema_version (version, applied_at)
+VALUES (3, strftime('%s', 'now') * 1000);

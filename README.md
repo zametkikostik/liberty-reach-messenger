@@ -384,7 +384,7 @@ cargo test --no-default-features
 
 **Konstantin** — Decentralized Systems Developer
 
-- **Email:** intelligent.swallow.aybm@mask.me
+- **Email:** zametkikostik@gmail.com
 
 ---
 
@@ -401,7 +401,7 @@ cargo test --no-default-features
 
 ## 📞 Contact & Support
 
-- **Email:** intelligent.swallow.aybm@mask.me
+- **Email:** zametkikostik@gmail.com
 
 ---
 

@@ -7,10 +7,11 @@ import 'package:http/http.dart' as http;
 /// Features: Immutable Love Protocol, Encrypted Messages, D1 Storage
 class IdentityService {
   // Cloudflare Worker URL - JavaScript Worker with D1
-  static const String _baseUrl = 'https://a-love-story-js.zametkikostik.workers.dev';
-  
+  static const String _baseUrl =
+      'https://a-love-story-js.zametkikostik.workers.dev';
+
   final http.Client _client = http.Client();
-  
+
   /// Зарегистрировать пользователя на бэкенде
   ///
   /// POST /register
@@ -35,7 +36,7 @@ class IdentityService {
       throw Exception('Network error: $e');
     }
   }
-  
+
   /// Верифицировать подпись сообщения
   Future<Map<String, dynamic>> verifySignature({
     required String publicKeyBase64,
@@ -52,13 +53,13 @@ class IdentityService {
           'signature': signatureBase64,
         }),
       );
-      
+
       return jsonDecode(response.body);
     } catch (e) {
       throw Exception('Verification error: $e');
     }
   }
-  
+
   /// Проверка здоровья бэкенда
   Future<bool> healthCheck() async {
     try {
@@ -68,7 +69,7 @@ class IdentityService {
       return false;
     }
   }
-  
+
   void dispose() {
     _client.close();
   }

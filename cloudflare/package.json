@@ -1,0 +1,23 @@
+{
+  "name": "liberty-reach-push",
+  "version": "0.7.3",
+  "description": "Liberty Reach Messenger - Cloudflare Worker with Immortal Love Vault",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "d1",
+    "messenger",
+    "e2ee"
+  ],
+  "author": "Konstantin",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

@@ -20,25 +20,28 @@ import 'package:flutter/services.dart';
 class TorService {
   // MethodChannel for Tor control
   static const MethodChannel _channel = MethodChannel('liberty_reach/tor');
-  
+
   // EventChannel for bootstrap progress
-  static const EventChannel _bootstrapChannel = EventChannel('liberty_reach/tor_bootstrap');
-  
+  static const EventChannel _bootstrapChannel =
+      EventChannel('liberty_reach/tor_bootstrap');
+
   // Stream controllers
-  static final _statusController = StreamController<Map<String, dynamic>>.broadcast();
+  static final _statusController =
+      StreamController<Map<String, dynamic>>.broadcast();
   static final _bootstrapController = StreamController<int>.broadcast();
-  
+
   // State
   static bool _isRunning = false;
   static int _bootstrapProgress = 0;
   static String? _onionAddress;
-  
+
   // ============================================================================
   // STREAMS
   // ============================================================================
 
   /// Stream of Tor status updates
-  static Stream<Map<String, dynamic>> get statusStream => _statusController.stream;
+  static Stream<Map<String, dynamic>> get statusStream =>
+      _statusController.stream;
 
   /// Stream of bootstrap progress (0-100)
   static Stream<int> get bootstrapStream => _bootstrapController.stream;
@@ -59,19 +62,19 @@ class TorService {
       await _channel.invokeMethod('initialize', {
         'torDataDir': torDataDir,
       });
-      
+
       // Listen for status updates
       _channel.setMethodCallHandler((call) async {
         switch (call.method) {
           case 'status_update':
             final status = call.arguments as Map<dynamic, dynamic>;
             _statusController.add(Map<String, dynamic>.from(status));
-            
+
             if (status['hostname'] != null) {
               _onionAddress = status['hostname'] as String;
             }
             break;
-            
+
           case 'bootstrap_progress':
             final progress = call.arguments as Map<dynamic, dynamic>;
             _bootstrapProgress = progress['progress'] as int;
@@ -79,7 +82,7 @@ class TorService {
             break;
         }
       });
-      
+
       return true;
     } catch (e) {
       print('Tor initialization error: $e');
@@ -238,7 +241,7 @@ class TorService {
   /// Get estimated battery impact (% per hour)
   static double getBatteryImpact() {
     if (!_isRunning) return 0.0;
-    
+
     // Estimate based on bootstrap progress
     if (_bootstrapProgress < 50) {
       return 15.0; // High impact during bootstrap
@@ -294,11 +297,11 @@ class TorBootstrapEvent {
   /// Get estimated time remaining
   Duration? get estimatedTimeRemaining {
     if (progress == 0) return null;
-    
+
     final elapsed = DateTime.now().difference(timestamp);
     final total = elapsed.inMilliseconds * (100 / progress);
     final remaining = total - elapsed.inMilliseconds;
-    
+
     return Duration(milliseconds: remaining.toInt());
   }
 

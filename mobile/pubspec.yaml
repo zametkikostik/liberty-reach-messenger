@@ -6,106 +6,78 @@ version: 0.6.0+6
 environment:
   sdk: '>=3.4.0 <4.0.0'
 
-# ============================================================================
-# DEPENDENCIES
-# ============================================================================
-
 dependencies:
   flutter:
     sdk: flutter
-  
-  # UI Components
+
   cupertino_icons: ^1.0.6
 
-  # ============================================================================
-  # NETWORKING
-  # ============================================================================
-  
-  # HTTP client for API calls
+  # Networking
   http: ^1.1.0
+  dio: ^5.4.0
+  # flutter_webrtc: ^0.11.7  # TODO: Fix build - SimulcastVideoEncoderFactoryWrapper error
 
-  # WebRTC for P2P connections
-  flutter_webrtc: ^0.11.7
-
-  # ============================================================================
-  # SECURITY & CRYPTOGRAPHY
-  # ============================================================================
-  
-  # Secure storage (KeyStore/Keychain)
+  # Security & Cryptography
   flutter_secure_storage: ^9.0.0
-  
-  # Ed25519 digital signatures
   cryptography: ^2.7.0
-  
-  # AES-256-GCM encryption (for backups)
   encrypt: ^5.0.3
-  
-  # Hash functions (SHA-256, etc.)
   crypto: ^3.0.3
-  
-  # Cryptographic primitives (PBKDF2, etc.)
   pointycastle: ^3.7.3
-  
-  # Base64 encoding
   convert: ^3.1.1
 
-  # ============================================================================
-  # LOCAL STORAGE
-  # ============================================================================
-  
-  # Preferences storage
+  # Biometric authentication
+  local_auth: ^2.1.6
+
+  # Local storage
   shared_preferences: ^2.2.2
 
-  # ============================================================================
-  # SYSTEM
-  # ============================================================================
-  
-  # Device information
+  # System
   device_info_plus: ^9.1.1
-  
-  # Battery status
   battery_plus: ^5.0.2
-  
-  # Path provider
   path_provider: ^2.1.5
 
-  # ============================================================================
-  # UTILS
-  # ============================================================================
-  
-  # UUID generation
+  # Utils
   uuid: ^4.2.1
+  flutter_dotenv: ^5.1.0
+  web_socket_channel: ^2.4.0
   
-  # JSON serialization
-  json_annotation: ^4.8.1
+  # Speech-to-Text
+  speech_to_text: ^6.6.0
+  permission_handler: ^11.3.0
+
+  # Audio
+  # record: ^5.0.4  # Build issues, use native implementation
+  audioplayers: ^5.2.1
+  
+  # WebRTC (Video calls)
+  flutter_webrtc: ^0.9.38  # Stable version without build issues
+
+  # GIF Picker (using http instead)
+  # giphy_dart: ^2.0.0  # Not available, using direct API
+
+  # Push Notifications (optional - for production)
+  # firebase_messaging: ^14.7.0  # TODO: Add for production
+  # firebase_core: ^2.24.0
+
+  # Image handling
+  image_picker: ^1.1.2
+  image_cropper: ^5.0.1
+  cached_network_image: ^3.3.0
+  # emoji_picker_flutter: ^1.6.2  # Build issues, using custom picker instead
+
+  # Google Fonts
+  google_fonts: ^6.3.0
+
+  # State Management
+  provider: ^6.1.1
+
+  # Particles/Effects
+  vector_math: ^2.1.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
-  # Linting
   flutter_lints: ^3.0.0
-  
-  # JSON code generation
-  build_runner: ^2.4.7
-  json_serializable: ^6.7.1
-
-# ============================================================================
-# FLUTTER
-# ============================================================================
 
 flutter:
   uses-material-design: true
-  
-  # Assets (add as needed)
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
-  
-  # Fonts (add as needed)
-  # fonts:
-  #   - family: Roboto
-  #     fonts:
-  #       - asset: fonts/Roboto-Regular.ttf
-  #       - asset: fonts/Roboto-Bold.ttf
-  #         weight: 700

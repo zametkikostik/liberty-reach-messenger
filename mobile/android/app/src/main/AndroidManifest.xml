@@ -34,23 +34,27 @@
     <!-- Vibration (for notifications) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Microphone (for voice messages) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- ========================================================================
          OPTIONAL PERMISSIONS (Requested at Runtime)
          ======================================================================== -->
-    
-    <!-- Camera (for QR code scanning) -->
+
+    <!-- Camera (for QR code scanning and video calls) -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
-    
+
     <!-- Microphone (for voice calls via WebRTC) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    
-    <!-- Bluetooth (for local P2P) -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+
+    <!-- USB for audio routing -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     
     <!-- Storage (for backups) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
