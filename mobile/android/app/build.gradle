@@ -6,16 +6,16 @@ plugins {
 
 android {
     namespace "com.zametkikostik.liberty_reach"
-    compileSdk 34
+    compileSdk 35
     ndkVersion "25.1.8937393"
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
 
     sourceSets {
@@ -24,8 +24,8 @@ android {
 
     defaultConfig {
         applicationId "com.zametkikostik.liberty_reach"
-        minSdk 21
-        targetSdk 34
+        minSdk 26
+        targetSdk 35
         versionCode 1
         versionName "0.8.0"
         multiDexEnabled true
@@ -43,11 +43,14 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }
@@ -57,7 +60,7 @@ flutter {
 }
 
 dependencies {
-    // 🧅 Tor Android (Guardian Project - Latest Stable 0.4.9.5)
+    // 🧅 Tor Android (Guardian Project - Latest Stable)
     implementation 'info.guardianproject:tor-android:0.4.9.5'
     implementation 'info.guardianproject:jtorctl:0.4.5.7'
 

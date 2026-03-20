@@ -1,0 +1,69 @@
+name: Debug APK Build
+
+on:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+
+jobs:
+  build-debug-apk:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 9.0
+          build-tools-version: '34.0.0'
+          platform-version: 'android-34'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Ensure main.dart exists
+        run: |
+          if [ ! -f "lib/main.dart" ]; then
+            echo "lib/main.dart not found!"
+            exit 1
+          fi
+          echo "✅ lib/main.dart found"
+
+      - name: Flutter clean
+        run: flutter clean
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Debug APK
+        run: flutter build apk --debug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: liberty-reach-debug-apk
+          path: ${{ github.workspace }}/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7

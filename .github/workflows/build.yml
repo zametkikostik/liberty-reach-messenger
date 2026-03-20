@@ -11,6 +11,7 @@ on:
 env:
   FLUTTER_VERSION: '3.24.0'
   JAVA_VERSION: '17'
+  KOTLIN_VERSION: '2.3.0'
   RUST_VERSION: '1.75'
 
 jobs:
@@ -20,6 +21,7 @@ jobs:
   build-flutter:
     name: Build Flutter APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     defaults:
       run:
@@ -38,8 +40,17 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
 
-      # 3. Setup Flutter
+      # 3. Setup Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11.0
+          build-tools-version: '35.0.0'
+          platform-version: 'android-35'
+
+      # 4. Setup Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -47,7 +58,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # 4. Ensure main.dart exists (create fallback if missing)
+      # 5. Ensure main.dart exists (create fallback if missing)
       - name: Ensure Flutter Entry Point
         run: |
           echo "🔍 Checking for lib/main.dart..."
@@ -86,67 +97,87 @@ jobs:
             echo "✅ lib/main.dart found"
           fi
 
-      # 5. Decode Keystore (RELATIVE PATH - android/app/upload-keystore.jks)
+      # 6. Decode Keystore (RELATIVE PATH - android/app/upload-keystore.jks)
       - name: Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           echo "🔐 Decoding keystore from BASE64..."
           mkdir -p android/app
-          echo "${KEYSTORE_BASE64}" | base64 --decode > android/app/upload-keystore.jks
+          if [ -z "${KEYSTORE_BASE64}" ]; then
+            echo "⚠️ KEYSTORE_BASE64 is empty, creating debug keystore..."
+            keytool -genkey -v -keystore android/app/upload-keystore.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, S=Debug, C=US"
+          else
+            echo "${KEYSTORE_BASE64}" | base64 --decode > android/app/upload-keystore.jks
+          fi
+          if [ ! -f "android/app/upload-keystore.jks" ]; then
+            echo "❌ Keystore decoding failed!"
+            exit 1
+          fi
           ls -la android/app/upload-keystore.jks
 
-      # 6. Export Environment Variables
+      # 7. Export Environment Variables
       - name: Setup Environment Variables
         run: |
           echo "📋 Setting up environment variables..."
           echo "STORE_FILE=upload-keystore.jks" >> $GITHUB_ENV
-          echo "STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          echo "STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD || 'android' }}" >> $GITHUB_ENV
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS || 'upload' }}" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD || 'android' }}" >> $GITHUB_ENV
           echo "RPC_URL=${{ secrets.RPC_URL }}" >> $GITHUB_ENV
           echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> $GITHUB_ENV
           echo "SECRET_LOVE_KEY=${{ secrets.SECRET_LOVE_KEY }}" >> $GITHUB_ENV
 
-      # 7. Create key.properties (for Gradle)
+      # 8. Create key.properties (for Gradle)
       - name: Create key.properties
         run: |
           cat > android/key.properties << EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=upload
+          storePassword=${{ secrets.KEYSTORE_PASSWORD || 'android' }}
+          keyPassword=${{ secrets.KEY_PASSWORD || 'android' }}
+          keyAlias=${{ secrets.KEY_ALIAS || 'upload' }}
           storeFile=upload-keystore.jks
           EOF
           cat android/key.properties
 
-      # 8. Build Flutter APK
+      # 9. Gradle cache
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 10. Build Flutter APK
       - name: Build Release APK
         run: |
           echo "📁 Current directory structure:"
-          ls -R
+          ls -la
           echo ""
           echo "🔧 Running flutter clean..."
           flutter clean
           echo "📦 Running flutter pub get..."
           flutter pub get
-          echo "🏗️ Building APK with explicit target..."
-          flutter build apk --release --split-per-abi --target lib/main.dart
+          echo "🏗️ Building APK..."
+          flutter build apk --release --split-per-abi
         env:
           KEY_ALIAS: upload
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
-      # 9. Build App Bundle
+      # 11. Build App Bundle
       - name: Build App Bundle
         run: |
-          echo "🏗️ Building App Bundle with explicit target..."
-          flutter build appbundle --release --target lib/main.dart
+          echo "🏗️ Building App Bundle..."
+          flutter build appbundle --release
         env:
           KEY_ALIAS: upload
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
-      # 10. Upload Artifacts (wildcard for split APKs)
+      # 12. Upload APK Artifacts (wildcard for split APKs)
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -156,7 +187,7 @@ jobs:
             ${{ github.workspace }}/mobile/build/app/outputs/bundle/release/*.aab
           retention-days: 30
 
-      # 11. Create Release (if tagged)
+      # 13. Create Release (if tagged)
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
