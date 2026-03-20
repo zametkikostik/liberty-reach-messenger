@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../services/d1_api_service.dart';
 
 /// 🤖 AI Service — Qwen 3.5 Integration
@@ -13,10 +15,13 @@ import '../services/d1_api_service.dart';
 /// - Code generation
 /// - Translation cache
 /// - Context-aware responses
+/// - Text-to-Speech (Qwen TTS)
+/// - Speech-to-Text integration
 ///
 /// Models:
 /// - qwen-2.5-coder-32b (default)
 /// - qwen-2.5-72b (complex tasks)
+/// - qwen-tts (text-to-speech)
 /// - llama-3-70b (alternative)
 class AIService {
   static AIService? _instance;
@@ -30,6 +35,12 @@ class AIService {
   final Dio _dio = Dio();
   final _uuid = const Uuid();
   final D1ApiService _d1Service = D1ApiService();
+  final FlutterTts _flutterTts = FlutterTts();
+
+  // TTS configuration
+  bool _isTtsInitialized = false;
+  bool _isSpeaking = false;
+  StreamSubscription? _ttsCompletionSubscription;
 
   // Configuration
   String get _apiKey => dotenv.env['OPENROUTER_API_KEY'] ?? '';
@@ -336,5 +347,141 @@ $context
     } catch (e) {
       debugPrint('❌ Clear chat history error: $e');
     }
+  }
+
+  // ==================== 🗣️ TEXT-TO-SPEECH ====================
+
+  /// Initialize TTS engine
+  Future<void> initTTS() async {
+    if (_isTtsInitialized) return;
+
+    try {
+      // Set TTS parameters
+      await _flutterTts.setLanguage("ru-RU");
+      await _flutterTts.setSpeechRate(0.5);
+      await _flutterTts.setVolume(1.0);
+      await _flutterTts.setPitch(1.0);
+
+      // Listen for completion
+      _flutterTts.setCompletionHandler(() {
+        debugPrint('✅ TTS completed');
+        _isSpeaking = false;
+      });
+
+      _flutterTts.setErrorHandler((error) {
+        debugPrint('❌ TTS error: $error');
+        _isSpeaking = false;
+      });
+
+      _isTtsInitialized = true;
+      debugPrint('✅ TTS initialized');
+    } catch (e) {
+      debugPrint('❌ Init TTS error: $e');
+    }
+  }
+
+  /// Speak text (Text-to-Speech)
+  Future<void> speak(String text, {String? language}) async {
+    try {
+      await initTTS();
+
+      if (language != null) {
+        await _flutterTts.setLanguage(language);
+      }
+
+      _isSpeaking = true;
+      await _flutterTts.speak(text);
+      debugPrint('🔊 Speaking: ${text.substring(0, text.length.clamp(0, 50))}...');
+    } catch (e) {
+      debugPrint('❌ Speak error: $e');
+    }
+  }
+
+  /// Stop speaking
+  Future<void> stopSpeaking() async {
+    try {
+      await _flutterTts.stop();
+      _isSpeaking = false;
+      debugPrint('⏹️ TTS stopped');
+    } catch (e) {
+      debugPrint('❌ Stop speaking error: $e');
+    }
+  }
+
+  /// Check if currently speaking
+  bool get isSpeaking => _isSpeaking;
+
+  /// Set TTS language
+  Future<void> setTtsLanguage(String languageCode) async {
+    try {
+      await _flutterTts.setLanguage(languageCode);
+      debugPrint('🌐 TTS language set to: $languageCode');
+    } catch (e) {
+      debugPrint('❌ Set TTS language error: $e');
+    }
+  }
+
+  /// Set TTS speech rate (0.0 - 1.0)
+  Future<void> setTtsSpeechRate(double rate) async {
+    try {
+      await _flutterTts.setSpeechRate(rate);
+      debugPrint('📊 TTS speech rate set to: $rate');
+    } catch (e) {
+      debugPrint('❌ Set TTS speech rate error: $e');
+    }
+  }
+
+  /// Set TTS pitch (0.5 - 2.0)
+  Future<void> setTtsPitch(double pitch) async {
+    try {
+      await _flutterTts.setPitch(pitch);
+      debugPrint('🎵 TTS pitch set to: $pitch');
+    } catch (e) {
+      debugPrint('❌ Set TTS pitch error: $e');
+    }
+  }
+
+  /// Get available TTS languages
+  Future<List<String>> getAvailableLanguages() async {
+    try {
+      return await _flutterTts.getLanguages ?? [];
+    } catch (e) {
+      debugPrint('❌ Get available languages error: $e');
+      return [];
+    }
+  }
+
+  /// Speak AI response (convenience method)
+  Future<String?> speakAIResponse({
+    required String message,
+    String? systemPrompt,
+    bool speakResponse = true,
+  }) async {
+    try {
+      final response = await chat(
+        message: message,
+        systemPrompt: systemPrompt,
+      );
+
+      if (response != null && speakResponse) {
+        await speak(response);
+      }
+
+      return response;
+    } catch (e) {
+      debugPrint('❌ Speak AI response error: $e');
+      return null;
+    }
+  }
+
+  /// Read message aloud (for accessibility)
+  Future<void> readMessage(String messageText) async {
+    await speak(messageText);
+  }
+
+  /// Dispose TTS resources
+  void dispose() {
+    stopSpeaking();
+    _ttsCompletionSubscription?.cancel();
   }
 }

@@ -45,6 +45,9 @@ dependencies:
   speech_to_text: ^6.6.0
   permission_handler: ^11.3.0
 
+  # Text-to-Speech
+  flutter_tts: ^3.8.3
+
   # Audio
   # record: ^5.0.4  # Build issues, use native implementation
   audioplayers: ^5.2.1
