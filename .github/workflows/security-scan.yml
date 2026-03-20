@@ -1,0 +1,167 @@
+name: 🔒 Security Backdoor Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security-scan:
+    name: Backdoor & Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install security tools
+        run: |
+          pip install bandit safety trufflehog3
+          npm install -g @secretlint/secretlint-rule-preset-recommend secretlint
+      
+      - name: 🔍 Scan for hardcoded secrets
+        run: |
+          echo "=== Scanning for hardcoded secrets ==="
+          trufflehog3 filesystem --no-update . || true
+      
+      - name: 🔍 Scan for backdoor patterns
+        run: |
+          echo "=== Scanning for backdoor patterns ==="
+          python3 .github/security_scanner.py
+      
+      - name: 🔍 Scan for forbidden imports
+        run: |
+          echo "=== Scanning for forbidden imports ==="
+          
+          # Dart/Flutter - опасные импорты
+          echo "Checking Dart files..."
+          if grep -rn "dart:ffi" mobile/lib --include="*.dart" | grep -v "allowed"; then
+            echo "❌ Found dart:ffi import (potential native code execution)"
+            exit 1
+          fi
+          
+          if grep -rn "Process.run" mobile/lib --include="*.dart"; then
+            echo "❌ Found Process.run (potential command injection)"
+            exit 1
+          fi
+          
+          if grep -rn "eval(" mobile/lib --include="*.dart"; then
+            echo "❌ Found eval() (potential code injection)"
+            exit 1
+          fi
+          
+          # JavaScript/Node - опасные импорты
+          echo "Checking JavaScript files..."
+          if grep -rn "child_process" backend-js --include="*.js" | grep -v "allowed"; then
+            echo "❌ Found child_process import (potential command execution)"
+            exit 1
+          fi
+          
+          if grep -rn "eval(" backend-js --include="*.js"; then
+            echo "❌ Found eval() in JavaScript"
+            exit 1
+          fi
+          
+          # Rust - опасные функции
+          echo "Checking Rust files..."
+          if grep -rn "std::process::Command" src --include="*.rs" | grep -v "allowed"; then
+            echo "❌ Found std::process::Command (potential command execution)"
+            exit 1
+          fi
+          
+          echo "✅ No forbidden imports found"
+      
+      - name: 🔍 Scan for hardcoded API keys
+        run: |
+          echo "=== Scanning for hardcoded API keys ==="
+          
+          # Паттерны для API ключей
+          PATTERNS=(
+            "sk-or-v1-[a-zA-Z0-9]"
+            "AIzaSy[a-zA-Z0-9_-]"
+            "ghp_[a-zA-Z0-9]{36}"
+            "xox[baprs]-[a-zA-Z0-9]"
+            "AKIA[0-9A-Z]{16}"
+          )
+          
+          for pattern in "${PATTERNS[@]}"; do
+            if grep -rn "$pattern" . --exclude-dir=.git --exclude-dir=node_modules; then
+              echo "❌ Found potential API key matching pattern: $pattern"
+              exit 1
+            fi
+          done
+          
+          echo "✅ No hardcoded API keys found"
+      
+      - name: 🔍 Scan for hardcoded passwords
+        run: |
+          echo "=== Scanning for hardcoded passwords ==="
+          
+          # Ищем потенциальные пароли в коде
+          if grep -rn "password.*=.*['\"][^'\"]\{8,\}['\"]" . --exclude-dir=.git --exclude-dir=node_modules | grep -v ".env.example" | grep -v "test"; then
+            echo "❌ Found potential hardcoded password"
+            exit 1
+          fi
+          
+          # Конкретная проверка на пароль "REDACTED_PASSWORD"
+          if grep -rn "REDACTED_PASSWORD" . --exclude-dir=.git --exclude-dir=node_modules; then
+            echo "❌ CRITICAL: Found hardcoded master password!"
+            exit 1
+          fi
+          
+          echo "✅ No hardcoded passwords found"
+      
+      - name: 🔍 Scan for suspicious URLs
+        run: |
+          echo "=== Scanning for suspicious URLs ==="
+          
+          # Ищем hardcoded URL (кроме разрешённых)
+          if grep -rn "https://.*\.ngrok\.io" . --exclude-dir=.git; then
+            echo "⚠️ Found ngrok URL (potential tunnel backdoor)"
+          fi
+          
+          if grep -rn "https://.*\.trycloudflare\.com" . --exclude-dir=.git; then
+            echo "⚠️ Found cloudflare tunnel URL (check if authorized)"
+          fi
+          
+          echo "✅ URL scan complete"
+      
+      - name: 🔍 Scan for crypto mining patterns
+        run: |
+          echo "=== Scanning for crypto mining patterns ==="
+          
+          if grep -rn "coinhive" . --exclude-dir=.git; then
+            echo "❌ Found Coinhive (crypto mining)"
+            exit 1
+          fi
+          
+          if grep -rn "webassembly.*mining" . --exclude-dir=.git -i; then
+            echo "❌ Found WebAssembly mining pattern"
+            exit 1
+          fi
+          
+          echo "✅ No crypto mining patterns found"
+      
+      - name: 🔍 Scan for data exfiltration
+        run: |
+          echo "=== Scanning for data exfiltration ==="
+          
+          # Ищем подозрительные POST запросы
+          if grep -rn "fetch.*POST.*http" . --exclude-dir=.git --include="*.js" --include="*.dart" | grep -v "liberty-reach" | grep -v "cloudflare"; then
+            echo "⚠️ Found suspicious POST request to external URL"
+          fi
+          
+          echo "✅ Data exfiltration scan complete"
+      
+      - name: ✅ Security scan complete
+        run: |
+          echo "==================================="
+          echo "✅ SECURITY SCAN PASSED"
+          echo "==================================="
+          echo "No backdoors, secrets, or suspicious patterns found!"

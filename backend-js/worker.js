@@ -1,15 +1,25 @@
 /**
- * Liberty Reach Messenger v0.6.0 "Immortal Love"
+ * Liberty Reach Messenger v0.7.3 "Immortal Love"
  * Cloudflare Worker (JavaScript) - Zero-Trust Architecture
- * 
+ *
  * Security Features:
  * - ✅ E2EE: Cloudflare NEVER sees plaintext (stores only ciphertext)
  * - ✅ Immutable Love Guard: Blocks DELETE if is_love_immutable = 1
  * - ✅ Server-Side Validation: Checks signature authenticity
  * - ✅ Rate Limiting: Prevents abuse
- * 
+ * - ✅ KILL SWITCH: Self-destruct on secret header (Panic wipe)
+ *
  * Backend URL: https://a-love-story-js.zametkikostik.workers.dev
  */
+
+// ============================================================================
+// SECURITY CONFIGURATION
+// ============================================================================
+
+// KILL SWITCH CODE (from environment variable - NEVER commit to git!)
+// Set in Cloudflare Dashboard: Workers → Variables → KILL_SWITCH_CODE
+// Example: REDACTED_PASSWORD (but use .env in production!)
+const KILL_SWITCH_HEADER = 'X-Panic-Wipe';
 
 // ============================================================================
 // CONSTANTS & UTILS
@@ -73,12 +83,97 @@ function generateUUID() {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
+
+    // ==========================================================================
+    // 🔥 KILL SWITCH - PANIC WIPE 🔥
+    // ==========================================================================
+    // Если получен запрос с секретным заголовком X-Panic-Wipe,
+    // воркер мгновенно удаляет ВСЕ данные из D1
+    // 
+    // Использование:
+    // curl -H "X-Panic-Wipe: REDACTED_PASSWORD" https://your-worker.workers.dev/
+    //
+    // ВАЖНО: KILL_SWITCH_CODE должен быть установлен в Cloudflare Dashboard
+    // Workers → Settings → Variables → KILL_SWITCH_CODE
+    // ==========================================================================
     
+    const panicCode = request.headers.get(KILL_SWITCH_HEADER);
+    const killSwitchCode = env.KILL_SWITCH_CODE;
+    
+    if (panicCode && killSwitchCode && panicCode === killSwitchCode) {
+      console.log('🔥 KILL SWITCH ACTIVATED - PANIC WIPE INITIATED 🔥');
+      
+      try {
+        // Удаляем ВСЕ данные из всех таблиц
+        const tables = [
+          'messages',
+          'users',
+          'groups',
+          'group_members',
+          'channels',
+          'channel_subscribers',
+          'crypto_wallets',
+          'token_balances',
+          'transactions',
+          'swaps',
+          'abcex_orders',
+          'bitget_orders',
+          'p2p_escrows',
+          'fee_splits',
+          'ai_chat_history',
+          'ai_translations_cache',
+          'pinned_messages',
+          'saved_messages',
+          'emoji_reactions',
+          'stories',
+          'story_views',
+          'user_profiles',
+          'love_tokens'
+        ];
+        
+        for (const table of tables) {
+          try {
+            await env.DB.prepare(`DELETE FROM ${table}`).run();
+            console.log(`🗑️ Cleared table: ${table}`);
+          } catch (e) {
+            console.log(`⚠️ Table ${table} may not exist: ${e.message}`);
+          }
+        }
+        
+        console.log('✅ PANIC WIPE COMPLETE - ALL DATA DESTROYED');
+        
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'PANIC WIPE COMPLETE - ALL DATA DESTROYED',
+          timestamp: Date.now(),
+          tables_cleared: tables.length
+        }), {
+          status: 200,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        });
+        
+      } catch (e) {
+        console.error('❌ PANIC WIPE FAILED:', e);
+        
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'PANIC WIPE FAILED',
+          details: e.message
+        }), {
+          status: 500,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    // ==========================================================================
+    // END KILL SWITCH
+    // ==========================================================================
+
     try {
       // ==========================================================================
       // GET /health - Health check
