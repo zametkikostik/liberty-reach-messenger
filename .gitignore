@@ -12,8 +12,17 @@
 .env.development
 .env.production
 .env.*.local
+*.env
 
-# Keystore files (Android signing)
+# Continue IDE config (contains API keys)
+.continue/config.json
+.continue/config.local.json
+
+# Other config files with secrets
+*.secret
+*.secrets
+secrets.json
+credentials.json
 *.jks
 *.keystore
 upload-keystore.jks
@@ -137,9 +146,15 @@ Thumbs.db
 # Qwen Code
 .qwen/
 
+# Continue IDE config (contains API keys)
+.continue/config.json
+
 # ============================================================================
 # VERIFICATION - FILES THAT SHOULD NEVER BE COMMITTED
 # ============================================================================
 # Run this command to check:
 # git ls-files | grep -E "(jks|keystore|key.properties|base64|\.env\.local)"
-# ============================================================================
+# ============================================================================.env
+.env
+.dart_tool/
+build/

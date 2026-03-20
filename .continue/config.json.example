@@ -1,0 +1,69 @@
+{
+  "tabAutocompleteModel": {
+    "title": "Qwen-Coder-Local",
+    "provider": "ollama",
+    "model": "qwen2.5-coder:3b",
+    "apiBase": "http://localhost:11434"
+  },
+  "models": [
+    {
+      "title": "Qwen-Coder-Local",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:3b",
+      "apiBase": "http://localhost:11434",
+      "contextLength": 8192,
+      "completionOptions": {
+        "maxTokens": 2048,
+        "temperature": 0.7
+      }
+    }
+  ],
+  "embeddingsModel": {
+    "title": "Nomic-Embed-Local",
+    "provider": "ollama",
+    "model": "nomic-embed-text",
+    "apiBase": "http://localhost:11434"
+  },
+  "analytics": {
+    "enabled": false
+  },
+  "allowAnonymousTelemetry": false,
+  "userToken": "",
+  "pauseCodeAutocomplete": false,
+  "disableIndexing": false,
+  "disableSessionTitles": true,
+  "ui": {
+    "fontSize": 14,
+    "componentSpacing": 8
+  },
+  "network": {
+    "ssl": {
+      "verify": false,
+      "caBundles": []
+    },
+    "proxy": {
+      "enabled": false,
+      "url": "",
+      "username": "",
+      "password": ""
+    },
+    "timeout": 60000,
+    "retry": {
+      "enabled": true,
+      "maxAttempts": 10,
+      "delay": 5000,
+      "backoff": "exponential"
+    }
+  },
+  "cache": {
+    "enabled": true,
+    "maxSize": 1073741824,
+    "ttl": 86400
+  },
+  "experimental": {
+    "enableDevTools": true,
+    "enablePromptCache": true,
+    "enableStreaming": true
+  },
+  "_security_note": "ВАЖНО: Никогда не добавляй API ключи в этот файл! Используй переменные окружения или локальные конфиги вне git."
+}
