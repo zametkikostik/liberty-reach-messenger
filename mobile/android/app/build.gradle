@@ -34,8 +34,8 @@ android {
     signingConfigs {
         release {
             keyAlias "upload"
-            keyPassword System.getenv("KEY_PASSWORD")
-            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyPassword project.hasProperty("KEY_PASSWORD") ? project.property("KEY_PASSWORD") : ""
+            storePassword project.hasProperty("STORE_PASSWORD") ? project.property("STORE_PASSWORD") : ""
             storeFile file("upload-keystore.jks")
         }
     }
@@ -43,8 +43,8 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {

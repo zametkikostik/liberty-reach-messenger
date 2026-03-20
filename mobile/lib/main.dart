@@ -7,6 +7,7 @@ import 'providers/profile_provider.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
+  print("!!! START_DEBUG: ${DateTime.now()}");
   WidgetsFlutterBinding.ensureInitialized();
 
   final themeService = ThemeService();

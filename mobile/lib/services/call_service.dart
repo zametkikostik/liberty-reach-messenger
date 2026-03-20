@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// 📞 Call Service - WebRTC Voice/Video Calls
 ///
@@ -31,9 +32,9 @@ class CallService extends ChangeNotifier {
     {'url': 'stun:stun4.l.google.com:19302'},
   ];
 
-  // Signaling server URL (Cloudflare Worker)
-  static const String _signalingUrl =
-      'https://liberty-reach-push.kostik.workers.dev';
+  // Signaling server URL from .env.local
+  static String get _signalingUrl => dotenv.env['SIGNALING_URL'] ?? 
+      'https://liberty-reach-push.zametkikostik.workers.dev';
 
   final Dio _dio = Dio();
   final _uuid = const Uuid();
