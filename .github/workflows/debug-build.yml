@@ -33,9 +33,8 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          cmdline-tools-version: 9.0
-          build-tools-version: '34.0.0'
-          platform-version: 'android-34'
+          cmdline-tools-version: 11.0
+          log-accepted-android-sdk-licenses: false
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
