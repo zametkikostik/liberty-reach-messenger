@@ -1,7 +1,7 @@
 name: liberty_reach
-description: "Liberty Reach Messenger v0.6.0 - Zero-Trust Secure Messenger"
+description: "Liberty Reach Messenger v0.7.3-love - Zero-Trust Secure Messenger"
 publish_to: 'none'
-version: 0.6.0+6
+version: 0.7.3+7
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
