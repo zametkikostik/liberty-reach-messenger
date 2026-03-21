@@ -101,6 +101,11 @@ jobs:
           echo "🔐 Generating release keystore in RAM..."
           mkdir -p android/app
           
+          # 🔥 УДАЛЯЕМ СТАРЫЙ KEYSTORE (если есть)
+          rm -f android/app/upload-keystore.jks
+          rm -f android/app/*.jks
+          rm -f android/app/*.keystore
+          
           # Генерируем keystore с помощью keytool
           keytool -genkey -v \
             -keystore android/app/upload-keystore.jks \
