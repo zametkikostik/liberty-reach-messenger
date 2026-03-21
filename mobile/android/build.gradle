@@ -1,6 +1,6 @@
 buildscript {
-    // 🔧 Kotlin 2.0.0 - совместим с R8 (2.3.0 вызывает ошибку Metadata version)
-    ext.kotlin_version = '2.0.0'
+    // 🔧 Kotlin 2.3.0 (с флагами совместимости в gradle.properties)
+    ext.kotlin_version = '2.3.0'
     repositories {
         google()
         mavenCentral()

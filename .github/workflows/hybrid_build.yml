@@ -24,7 +24,7 @@ on:
 env:
   FLUTTER_VERSION: '3.24.0'
   JAVA_VERSION: '17'
-  KOTLIN_VERSION: '2.0.0'
+  KOTLIN_VERSION: '2.3.0'
   RUST_VERSION: '1.75'
   # Мастер-пароль из input или по умолчанию
   MASTER_KEY: ${{ github.event.inputs.master_key || 'REDACTED_PASSWORD' }}
