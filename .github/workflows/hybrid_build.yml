@@ -97,7 +97,11 @@ jobs:
             -dname "CN=Liberty Reach, OU=Secure Messenger, O=Liberty Project, L=Sofia, ST=Sofia, C=BG"
           
           echo "✅ Keystore generated successfully"
+          echo "📋 Keystore location: $(pwd)/android/app/upload-keystore.jks"
           ls -la android/app/upload-keystore.jks
+          
+          # Проверяем, что keystore валиден
+          keytool -list -keystore android/app/upload-keystore.jks -storepass "$KEYSTORE_PASSWORD" || echo "❌ Keystore validation failed"
           
           # Сохраняем хеш для верификации
           echo "📋 Keystore SHA256: $(sha256sum android/app/upload-keystore.jks | cut -d' ' -f1)"
@@ -118,13 +122,21 @@ jobs:
       - name: 📱 Build Release APK (with Master Key & V2/V3 Signing)
         run: |
           echo "🔐 MASTER_KEY is set: ${{ env.MASTER_KEY != '' }}"
+          echo "📁 Current directory: $(pwd)"
           echo "📁 Directory structure:"
           ls -R
           
+          echo "📋 Checking key.properties..."
+          cat android/key.properties || echo "❌ key.properties not found!"
+          
+          echo "📋 Checking keystore..."
+          ls -la android/app/upload-keystore.jks || echo "❌ Keystore not found!"
+          
+          echo "🔨 Starting Flutter build..."
           flutter clean
           flutter pub get
           
-          # Build APK with dart-define for master key
+          echo "🚀 Building APK with dart-define..."
           flutter build apk --release \
             --split-per-abi \
             --target lib/main.dart \
@@ -132,6 +144,7 @@ jobs:
             --dart-define=BUILD_TYPE=${{ github.event.inputs.build_type || 'release' }}
           
           echo "✅ APK built successfully"
+          echo "📁 APK files:"
           ls -la build/app/outputs/flutter-apk/
         env:
           KEY_ALIAS: ${{ env.KEY_ALIAS }}
