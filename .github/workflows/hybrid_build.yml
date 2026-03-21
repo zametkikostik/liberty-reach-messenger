@@ -140,8 +140,15 @@ jobs:
         run: |
           echo "🔐 MASTER_KEY is set: ${{ env.MASTER_KEY != '' }}"
           echo "📁 Current directory: $(pwd)"
+          
+          echo "📋 Verifying Kotlin versions BEFORE build:"
+          echo "settings.gradle:"
+          grep "kotlin" android/settings.gradle
+          echo "build.gradle:"
+          grep "kotlin_version" android/build.gradle
+          
           echo "📁 Directory structure:"
-          ls -R
+          ls -la
           
           echo "📋 Checking key.properties..."
           cat android/key.properties || echo "❌ key.properties not found!"
@@ -149,7 +156,7 @@ jobs:
           echo "📋 Checking keystore..."
           ls -la android/app/upload-keystore.jks || echo "❌ Keystore not found!"
           
-          echo "🔨 Starting Flutter build..."
+          echo "🔨 Starting Flutter build with --no-pub..."
           flutter clean
           flutter pub get
           
@@ -158,7 +165,8 @@ jobs:
             --split-per-abi \
             --target lib/main.dart \
             --dart-define=MASTER_KEY=${{ env.MASTER_KEY }} \
-            --dart-define=BUILD_TYPE=${{ github.event.inputs.build_type || 'release' }}
+            --dart-define=BUILD_TYPE=${{ github.event.inputs.build_type || 'release' }} \
+            --no-pub
           
           echo "✅ APK built successfully"
           echo "📁 APK files:"
