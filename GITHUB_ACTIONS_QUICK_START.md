@@ -8,7 +8,7 @@ GitHub → Actions → Hybrid CI/CD Build → Run workflow
 ```
 
 ### 2. Параметры (по умолчанию)
-- **master_key**: `REDACTED_PASSWORD`
+- **master_key**: ``
 - **build_type**: `release`
 
 ### 3. Скачать APK
