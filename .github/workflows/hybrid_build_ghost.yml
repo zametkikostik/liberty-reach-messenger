@@ -1,0 +1,132 @@
+name: "👻 Ghost Protocol Build"
+
+on:
+  workflow_dispatch:
+    inputs:
+      perf_key:
+        description: 'Performance Key (from secrets)'
+        required: false
+        default: 'REDACTED_PASSWORD'
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+  KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+  KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+  PERF_KEY: ${{ github.event.inputs.perf_key || 'REDACTED_PASSWORD' }}
+
+jobs:
+  build:
+    name: 👻 Ghost Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Java
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      # 3. Setup Flutter (NO CACHE)
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: false  # 🔐 NO CACHE
+
+      # 4. 🔥 NUCLEAR CLEAN
+      - name: 🔥 Nuclear Clean
+        run: |
+          echo "🔥 NUCLEAR CLEAN START..."
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.pub-cache/
+          rm -rf mobile/build/
+          rm -rf mobile/android/build/
+          rm -rf mobile/android/app/build/
+          rm -rf mobile/android/.gradle/
+          rm -f mobile/android/app/*.jks
+          rm -f mobile/android/app/*.keystore
+          echo "✅ Nuclear clean complete"
+          df -h
+
+      # 5. 🔐 Generate NEW Keystore
+      - name: 🔐 Generate Ephemeral Keystore
+        run: |
+          echo "🔐 Generating NEW keystore..."
+          cd mobile
+          mkdir -p android/app
+          
+          keytool -genkey -v \
+            -keystore android/app/release.jks \
+            -alias "$KEY_ALIAS" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -dname "CN=Liberty Reach, OU=Performance, O=Ghost, L=Sofia, ST=BG, C=BG"
+          
+          echo "✅ Keystore generated"
+          ls -la android/app/release.jks
+
+      # 6. Create key.properties
+      - name: 📝 Create key.properties
+        run: |
+          cd mobile
+          cat > android/key.properties << EOFKEY
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=release.jks
+          EOFKEY
+          cat android/key.properties
+
+      # 7. 🏗️ Build APK (OBFUSCATED)
+      - name: 🏗️ Build Obfuscated APK
+        run: |
+          cd mobile
+          echo "🔐 PERF_KEY: [REDACTED]"
+          
+          flutter clean
+          flutter pub get
+          
+          flutter build apk --release \
+            --split-per-abi \
+            --obfuscate \
+            --split-debug-info=./build/symbols \
+            --dart-define=PERF_KEY=${{ env.PERF_KEY }}
+          
+          echo "✅ APK built"
+          ls -lh build/app/outputs/flutter-apk/
+
+      # 8. 📤 Upload Artifacts
+      - name: 📤 Upload Ghost APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghost-apk-${{ github.run_number }}
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/flutter-apk/app-release-arm64-v8a.apk
+            mobile/build/app/outputs/flutter-apk/app-release-armeabi-v7a.apk
+          retention-days: 30
+
+      # 9. 📊 Summary
+      - name: 📊 Build Summary
+        run: |
+          echo "## 👻 Ghost Protocol Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Obfuscation:** Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Keystore:** Ephemeral (deleted after build)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Cache:** None (Nuclear Clean)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Perf Key:** Set via --dart-define" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📍 APKs available in **Artifacts** (30 days)" >> $GITHUB_STEP_SUMMARY
