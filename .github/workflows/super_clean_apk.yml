@@ -1,0 +1,45 @@
+name: "🔐 Clean Build (No Cache)"
+
+on:
+  workflow_dispatch: # Чтобы запускать кнопкой
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🧹 Total Wipe
+        run: rm -rf android/app/release.jks # Удаляем старый ключ физически
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: false # ВЫКЛЮЧАЕМ КЭШ ПОЛНОСТЬЮ
+
+      - name: 🔑 Generate Fresh Keystore
+        run: |
+          keytool -genkey -v -keystore android/app/release.jks \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias liberty -storepass ${{ secrets.SIGNING_STORE_PASSWORD }} \
+          -keypass ${{ secrets.SIGNING_KEY_PASSWORD }} \
+          -dname "CN=Liberty, O=Sovereign, C=US"
+
+      - name: 📦 Build APK
+        run: flutter build apk --release --obfuscate --split-debug-info=build/app/outputs/symbols
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: 🚀 Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sovereign-Clean-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
