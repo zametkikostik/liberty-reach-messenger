@@ -79,6 +79,19 @@ jobs:
           DART_EOF
           fi
 
+      # 4a. 🔥 FORCE DELETE OLD KEYSTORES (FIX for cached keystores)
+      - name: 🔥 Force Delete Old Keystores
+        run: |
+          echo "🔥 FORCE DELETING ALL OLD KEYSTORES..."
+          cd mobile
+          rm -f android/app/*.jks
+          rm -f android/app/*.keystore
+          rm -f android/app/upload-keystore.jks
+          rm -f android/app/release.jks
+          rm -f android/app/*-keystore.jks
+          echo "✅ All old keystores deleted"
+          ls -la android/app/ || echo "Directory check"
+
       # 4b. Clean Gradle Cache (FIX for Kotlin version mismatch)
       - name: 🧹 Clean Gradle Cache (Kotlin Version Fix)
         run: |
