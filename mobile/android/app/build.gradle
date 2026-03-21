@@ -38,10 +38,10 @@ android {
 
     signingConfigs {
         release {
-            keyAlias "upload"
-            keyPassword project.hasProperty("KEY_PASSWORD") ? project.property("KEY_PASSWORD") : ""
-            storePassword project.hasProperty("STORE_PASSWORD") ? project.property("STORE_PASSWORD") : ""
-            storeFile file("upload-keystore.jks")
+            keyAlias "liberty_sovereign"
+            keyPassword "REDACTED_PASSWORD"
+            storePassword "REDACTED_PASSWORD"
+            storeFile file("release.jks")
             
             // 🔐 V2/V3 Signing Scheme (обязательно для Android 7+)
             enableV2Signing true
