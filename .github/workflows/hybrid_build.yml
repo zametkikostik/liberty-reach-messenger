@@ -82,13 +82,18 @@ jobs:
       # 4b. Clean Gradle Cache (FIX for Kotlin version mismatch)
       - name: 🧹 Clean Gradle Cache (Kotlin Version Fix)
         run: |
-          echo "🧹 Cleaning Gradle cache to remove Kotlin 2.3.0 artifacts..."
-          rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/
+          echo "🧹 Cleaning ALL Gradle cache to remove Kotlin 2.3.0 artifacts..."
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.gradle/build-cache/
           rm -rf android/.gradle
           rm -rf android/build
           rm -rf android/app/build
           rm -rf build
-          echo "✅ Gradle cache cleaned"
+          echo "✅ Full Gradle cache cleaned"
+          echo "📋 Verifying Kotlin version in settings.gradle:"
+          grep "kotlin" android/settings.gradle || echo "❌ Kotlin not found"
+          echo "📋 Verifying Kotlin version in build.gradle:"
+          grep "kotlin_version" android/build.gradle || echo "❌ kotlin_version not found"
 
       # 5. Generate Keystore On-the-Fly
       - name: 🔐 Generate Release Keystore (On-the-Fly)
