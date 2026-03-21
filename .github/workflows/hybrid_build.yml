@@ -58,13 +58,13 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      # 3. Setup Flutter
+      # 3. Setup Flutter (DISABLE CACHE)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
-          cache: true
+          cache: false  # 🔥 ОТКЛЮЧАЕМ КЭШ!
 
       # 4. Ensure main.dart exists
       - name: Ensure Flutter Entry Point
@@ -89,6 +89,7 @@ jobs:
           rm -f android/app/upload-keystore.jks
           rm -f android/app/release.jks
           rm -f android/app/*-keystore.jks
+          rm -rf android/app/build/
           echo "✅ All old keystores deleted"
           ls -la android/app/ || echo "Directory check"
 
