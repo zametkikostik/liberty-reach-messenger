@@ -50,7 +50,7 @@ class _MasterPasswordScreenState extends State<MasterPasswordScreen>
   String _statusText = '';
   int _failedAttempts = 0;
 
-  static const int maxFailedAttempts = 5;
+  static const int maxFailedAttempts = 3;
 
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;

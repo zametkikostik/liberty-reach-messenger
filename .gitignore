@@ -165,3 +165,7 @@ Thumbs.db
 .env
 .dart_tool/
 build/
+*_REPORT.md
+{}/
+Running/
+Using/
