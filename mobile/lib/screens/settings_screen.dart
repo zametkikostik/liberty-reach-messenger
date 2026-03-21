@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
 import '../services/biometric_service.dart';
 import '../widgets/theme_switcher_widget.dart';
+import '../widgets/invisible_sovereign_portal.dart';
+import '../services/admin_access_service.dart';
 
 /// ⚙️ Settings Screen
 ///
@@ -24,6 +26,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool _biometricEnabled = false;
   bool _isLoading = true;
+  
+  // 🔐 7-tap detector for Invisible Sovereign Portal
+  int _tapCount = 0;
+  DateTime? _lastTapTime;
 
   @override
   void didChangeDependencies() {
@@ -440,6 +446,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // 🔐 Handle 7-tap gesture for Invisible Sovereign Portal
+  void _handleSecretTap() {
+    final now = DateTime.now();
+    
+    // Сброс если прошло больше 3 секунд
+    if (_lastTapTime == null || now.difference(_lastTapTime!) > const Duration(seconds: 3)) {
+      _tapCount = 0;
+    }
+    
+    _tapCount++;
+    _lastTapTime = now;
+    
+    debugPrint(👆
   void _showPanicWipeDialog() {
     showDialog(
       context: context,
