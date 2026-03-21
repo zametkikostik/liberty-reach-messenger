@@ -23,6 +23,7 @@
 *.secrets
 secrets.json
 credentials.json
+auth_info.json
 *.jks
 *.keystore
 upload-keystore.jks
@@ -48,6 +49,12 @@ identity.key
 *.pfx
 secret_key*
 encryption_key*
+
+# Security reports (contain vulnerability info)
+*_REPORT.md
+*_SECURITY_REPORT.md
+*_AUDIT_REPORT.md
+*_VULNERABILITY_REPORT.md
 
 # ============================================================================
 # RUST
