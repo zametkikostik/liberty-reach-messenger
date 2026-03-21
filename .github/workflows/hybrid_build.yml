@@ -24,6 +24,7 @@ on:
 env:
   FLUTTER_VERSION: '3.24.0'
   JAVA_VERSION: '17'
+  KOTLIN_VERSION: '2.0.0'
   RUST_VERSION: '1.75'
   # Мастер-пароль из input или по умолчанию
   MASTER_KEY: ${{ github.event.inputs.master_key || 'REDACTED_PASSWORD' }}
@@ -77,6 +78,17 @@ jobs:
           void main() => runApp(const MaterialApp(home: Scaffold(body: Center(child: Text('Liberty Reach')))));
           DART_EOF
           fi
+
+      # 4b. Clean Gradle Cache (FIX for Kotlin version mismatch)
+      - name: 🧹 Clean Gradle Cache (Kotlin Version Fix)
+        run: |
+          echo "🧹 Cleaning Gradle cache to remove Kotlin 2.3.0 artifacts..."
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/
+          rm -rf android/.gradle
+          rm -rf android/build
+          rm -rf android/app/build
+          rm -rf build
+          echo "✅ Gradle cache cleaned"
 
       # 5. Generate Keystore On-the-Fly
       - name: 🔐 Generate Release Keystore (On-the-Fly)
