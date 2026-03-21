@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 
 /// 🚫 Production Logger - No Logs Policy
@@ -28,9 +29,9 @@ class ProductionLogger {
   /// В release: ничего не делает
   static void log(String message, {String tag = 'LibertyReach'}) {
     if (!_isRelease) {
-      debugPrint('[$tag] $message');
+      developer.log(message, name: tag);
     }
-    // В релизе - тишина (никаких логов)
+    // В релизе - тишина (никаких логов!)
   }
 
   /// 🐛 Debug-лог (только для debug-сборки)
@@ -39,7 +40,7 @@ class ProductionLogger {
   /// В release: ничего не делает
   static void debug(String message, {String tag = 'LibertyReach'}) {
     if (!_isRelease) {
-      debugPrint('🐛 [$tag] DEBUG: $message');
+      developer.log('🐛 DEBUG: $message', name: tag);
     }
   }
 
@@ -49,9 +50,9 @@ class ProductionLogger {
   /// В release: ничего не делает (никаких следов!)
   static void error(String message, {String tag = 'LibertyReach', dynamic error}) {
     if (!_isRelease) {
-      debugPrint('❌ [$tag] ERROR: $message');
+      developer.log('❌ ERROR: $message', name: tag);
       if (error != null) {
-        debugPrint('❌ [$tag] Exception: $error');
+        developer.log('❌ Exception: $error', name: tag);
       }
     }
   }
@@ -75,7 +76,7 @@ class ProductionLogger {
   /// В release: ничего не делает
   static void info(String message, {String tag = 'LibertyReach'}) {
     if (!_isRelease) {
-      debugPrint('📊 [$tag] INFO: $message');
+      developer.log('📊 INFO: $message', name: tag);
     }
   }
 
@@ -85,7 +86,7 @@ class ProductionLogger {
   /// В release: ничего не делает
   static void warning(String message, {String tag = 'LibertyReach'}) {
     if (!_isRelease) {
-      debugPrint('⚠️ [$tag] WARNING: $message');
+      developer.log('⚠️ WARNING: $message', name: tag);
     }
   }
 
@@ -95,7 +96,7 @@ class ProductionLogger {
   /// В release: ничего не делает
   static void test(String message, {String tag = 'TEST'}) {
     if (!_isRelease) {
-      debugPrint('🧪 [$tag] $message');
+      developer.log('🧪 TEST: $message', name: tag);
     }
   }
 
@@ -105,9 +106,9 @@ class ProductionLogger {
   /// В release: ничего не делает (но можно включить для production monitoring)
   static void panic(String message, {String tag = 'PANIC', dynamic error}) {
     if (!_isRelease) {
-      debugPrint('🔥 [$tag] CRITICAL: $message');
+      developer.log('🔥 PANIC: $message', name: tag);
       if (error != null) {
-        debugPrint('🔥 [$tag] Exception: $error');
+        developer.log('🔥 Exception: $error', name: tag);
       }
     }
   }
@@ -118,7 +119,7 @@ class ProductionLogger {
   /// В release: ничего не делает
   static void assertCheck(bool condition, String message, {String tag = 'ASSERT'}) {
     if (!_isRelease && !condition) {
-      debugPrint('🎯 [$tag] ASSERT FAILED: $message');
+      developer.log('🎯 ASSERT FAILED: $message', name: tag);
     }
   }
 }

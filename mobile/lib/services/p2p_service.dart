@@ -1,8 +1,10 @@
-import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/d1_api_service.dart';
+import 'production_logger.dart';
 
 /// 🌐 P2P Network Service — libp2p Integration
 ///
@@ -22,6 +24,8 @@ import '../services/d1_api_service.dart';
 /// Note: Full libp2p implementation requires native platform code.
 /// This service provides the Flutter interface and D1 storage.
 /// For production, use flutter-libp2p or platform channels.
+///
+/// 🔒 Задача 4.2: P2P Guardian - Тайм-аут 10 секунд
 class P2PService {
   static P2PService? _instance;
   static P2PService get instance {
@@ -43,6 +47,11 @@ class P2PService {
   String? _localPeerId;
   String? _localMultiaddr;
   bool _isRunning = false;
+  
+  // 🔒 P2P Guardian: тайм-аут 10 секунд
+  static const Duration _p2pTimeout = Duration(seconds: 10);
+  Timer? _startupTimer;
+  Completer<bool>? _startupCompleter;
 
   // Getters
   String? get localPeerId => _localPeerId;
@@ -64,7 +73,9 @@ class P2PService {
     }
   }
 
-  /// Start P2P network
+  /// 🔒 Задача 4.2: P2P Guardian - Start с тайм-аутом 10 секунд
+  ///
+  /// Если узел не поднялся за 10 секунд - возвращает false
   Future<bool> start() async {
     try {
       if (_isRunning) return true;
@@ -74,22 +85,64 @@ class P2PService {
         await initialize();
       }
 
-      // In production:
+      // 🔒 P2P Guardian: устанавливаем тайм-аут
+      _startupCompleter = Completer<bool>();
+      _startupTimer = Timer(_p2pTimeout, () {
+        if (!_startupCompleter!.isCompleted) {
+          '⚠️ [P2P GUARDIAN] Startup timeout (10s)'.secureError(tag: 'P2P');
+          _startupCompleter!.complete(false);
+        }
+      });
+
+      // Запускаем узел в фоне
+      _startNodeInBackground();
+
+      // Ждём с тайм-аутом
+      final result = await _startupCompleter!.future;
+      
+      // Очищаем таймер
+      _startupTimer?.cancel();
+      _startupTimer = null;
+      _startupCompleter = null;
+
+      return result;
+    } catch (e) {
+      '❌ [P2P GUARDIAN] Start failed: $e'.secureError(tag: 'P2P');
+      _startupTimer?.cancel();
+      _startupCompleter?.complete(false);
+      _startupTimer = null;
+      _startupCompleter = null;
+      return false;
+    }
+  }
+
+  /// Запуск узла в фоне
+  Future<void> _startNodeInBackground() async {
+    try {
+      // В production:
       // - Start libp2p node
       // - Connect to bootstrap nodes
       // - Start mDNS discovery
       // - Start DHT bootstrap
 
+      // Симуляция задержки запуска
+      await Future.delayed(const Duration(milliseconds: 500));
+
       _isRunning = true;
-      debugPrint('🌐 P2P network started');
+      '🌐 P2P network started'.secureDebug(tag: 'P2P');
 
-      // Start peer discovery
+      // Старт успешен
+      if (_startupCompleter != null && !_startupCompleter!.isCompleted) {
+        _startupCompleter!.complete(true);
+      }
+
+      // Запускаем обнаружение пиров
       _startPeerDiscovery();
-
-      return true;
     } catch (e) {
-      debugPrint('❌ P2P start error: $e');
-      return false;
+      '❌ P2P node start error: $e'.secureError(tag: 'P2P');
+      if (_startupCompleter != null && !_startupCompleter!.isCompleted) {
+        _startupCompleter!.complete(false);
+      }
     }
   }
 
@@ -98,15 +151,24 @@ class P2PService {
     try {
       if (!_isRunning) return;
 
-      // In production:
+      // Очищаем таймеры
+      _startupTimer?.cancel();
+      _startupTimer = null;
+      
+      if (!_startupCompleter!.isCompleted) {
+        _startupCompleter?.complete(false);
+      }
+      _startupCompleter = null;
+
+      // В production:
       // - Stop libp2p node
       // - Close connections
       // - Clean up resources
 
       _isRunning = false;
-      debugPrint('🌐 P2P network stopped');
+      '🌐 P2P network stopped'.secureDebug(tag: 'P2P');
     } catch (e) {
-      debugPrint('❌ P2P stop error: $e');
+      '❌ P2P stop error: $e'.secureError(tag: 'P2P');
     }
   }
 
