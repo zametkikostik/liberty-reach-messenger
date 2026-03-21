@@ -235,8 +235,7 @@ CLOUDFLARE_API_KEY=your-cf-api-key
 CLOUDFLARE_ACCOUNT_ID=your-cf-account-id
 
 # WebRTC Signaling
-SIGNALING_URL=https://secure-messenger-push.kostik.workers.dev
-```
+SIGNALING_URL=https://liberty-reach-push.zametkikostik.workers.dev
 
 ---
 
@@ -404,7 +403,7 @@ cargo test --no-default-features
 **Сборка без VDS — всё через GitHub:**
 
 1. **Actions** → **Hybrid CI/CD Build** → **Run workflow**
-2. Параметры: `master_key: REDACTED_PASSWORD` (по умолчанию)
+2. Параметры: `master_key:  (по умолчанию)
 3. Через 5-10 минут: скачай APK из **Artifacts**
 
 🔐 **On-the-Fly Keystore** + **V2/V3 Signing** + **Obfuscation**
