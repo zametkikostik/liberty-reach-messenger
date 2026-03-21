@@ -22,6 +22,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 0. 🔥 FORCE CLEAN RUNNER DISK (BEFORE checkout!)
+      - name: 🔥 Force Clean Runner Disk
+        run: |
+          echo "🔥 CLEANING RUNNER DISK BEFORE CHECKOUT..."
+          rm -rf /home/runner/work/liberty-reach-messenger/liberty-reach-messenger/.git/
+          rm -rf /home/runner/work/liberty-reach-messenger/liberty-reach-messenger/mobile/build/
+          rm -rf /home/runner/work/liberty-reach-messenger/liberty-reach-messenger/mobile/android/build/
+          rm -rf /home/runner/work/liberty-reach-messenger/liberty-reach-messenger/mobile/android/app/build/
+          rm -rf /home/runner/work/liberty-reach-messenger/liberty-reach-messenger/mobile/android/app/*.jks
+          rm -rf /home/runner/work/liberty-reach-messenger/liberty-reach-messenger/mobile/android/app/*.keystore
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.pub-cache/
+          echo "✅ Runner disk cleaned"
+          df -h
+
       # 1. Checkout WITHOUT cache
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
