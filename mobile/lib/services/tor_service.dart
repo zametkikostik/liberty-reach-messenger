@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
+import 'production_logger.dart';
 
 /// 🧅 Tor Service for Liberty Reach Messenger
 ///
@@ -85,7 +86,7 @@ class TorService {
 
       return true;
     } catch (e) {
-      print('Tor initialization error: $e');
+      'Tor initialization error: $e'.secureError(tag: 'TOR');
       return false;
     }
   }
@@ -102,7 +103,7 @@ class TorService {
       }
       return result ?? false;
     } catch (e) {
-      print('Tor start error: $e');
+      'Tor start error: $e'.secureError(tag: 'TOR');
       return false;
     }
   }
@@ -120,7 +121,7 @@ class TorService {
       }
       return result ?? false;
     } catch (e) {
-      print('Tor stop error: $e');
+      'Tor stop error: $e'.secureError(tag: 'TOR');
       return false;
     }
   }
@@ -200,7 +201,7 @@ class TorService {
       });
       return true;
     } catch (e) {
-      print('Tor bridge configuration error: $e');
+      'Tor bridge configuration error: $e'.secureError(tag: 'TOR');
       return false;
     }
   }
@@ -219,7 +220,7 @@ class TorService {
       });
       return true;
     } catch (e) {
-      print('Tor proxy configuration error: $e');
+      'Tor proxy configuration error: $e'.secureError(tag: 'TOR');
       return false;
     }
   }

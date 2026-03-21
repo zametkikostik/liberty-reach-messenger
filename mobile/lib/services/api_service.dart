@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'production_logger.dart';
 
 /// Конфигурация приложения
 class AppConfig {
@@ -23,7 +24,7 @@ class AppConfig {
 
   static void printConfig() {
     if (kDebugMode) {
-      print('🏰 Liberty Reach Configuration Ready');
+      '🏰 Liberty Reach Configuration Ready'.secureDebug(tag: 'CONFIG');
     }
   }
 }

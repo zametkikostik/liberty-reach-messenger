@@ -24,3 +24,23 @@
 # Models
 -keep class model.** { *; }
 -keep class com.example.** { *; }
+
+# 🔐 Flutter Secure Storage - Don't obfuscate encryption classes
+-keep class com.it_nomads.fluttersecurestorage.** { *; }
+-keep class android.security.** { *; }
+
+# Flutter
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
+
+# 🔥 OBFUSCATION EXCEPTIONS - Critical security classes
+# Don't obfuscate password manager (but it's RAM-only anyway)
+-keep class **.**secure_password_manager.** { *; }
+-keep class **.**SecurePasswordManager { *; }
+
+# Keep encryption service
+-keep class **.**zero_knowledge_encryption.** { *; }
+-keep class **.**ZeroKnowledgeEncryptionService { *; }
+
+# Keep production logger
+-keep class **.**production_logger.** { *; }

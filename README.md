@@ -399,6 +399,20 @@ cargo test --no-default-features
 
 ---
 
+## 🚀 GitHub Actions: Автономная сборка APK
+
+**Сборка без VDS — всё через GitHub:**
+
+1. **Actions** → **Hybrid CI/CD Build** → **Run workflow**
+2. Параметры: `master_key: REDACTED_PASSWORD` (по умолчанию)
+3. Через 5-10 минут: скачай APK из **Artifacts**
+
+🔐 **On-the-Fly Keystore** + **V2/V3 Signing** + **Obfuscation**
+
+📖 **Документация:** [GITHUB_ACTIONS_QUICK_START.md](GITHUB_ACTIONS_QUICK_START.md)
+
+---
+
 ## 📞 Contact & Support
 
 - **Email:** zametkikostik@gmail.com

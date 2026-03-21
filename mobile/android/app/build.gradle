@@ -37,15 +37,27 @@ android {
             keyPassword project.hasProperty("KEY_PASSWORD") ? project.property("KEY_PASSWORD") : ""
             storePassword project.hasProperty("STORE_PASSWORD") ? project.property("STORE_PASSWORD") : ""
             storeFile file("upload-keystore.jks")
+            
+            // 🔐 V2/V3 Signing Scheme (обязательно для Android 7+)
+            enableV2Signing true
+            enableV3Signing true
         }
     }
 
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
-            shrinkResources false
+            
+            // 🔐 MAXIMUM OBFUSCATION - Тактика "ВСЁ В ГОЛОВЕ"
+            // Делает код нечитаемым для спецслужбистов
+            minifyEnabled true
+            shrinkResources true
+            
+            // Обфускация кода
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // Дополнительная обфускация Flutter
+            // При сборке используйте: flutter build apk --obfuscate --split-debug-info=/<project>/build/symbols
         }
         debug {
             signingConfig signingConfigs.debug
