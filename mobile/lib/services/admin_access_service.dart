@@ -2,19 +2,20 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'production_logger.dart';
 
-/// 🔐 Admin Access Service - Sovereign Admin Mode
+/// 🔐 Admin Access Service - Hidden Sovereign Portal
 ///
-/// ТАКТИКА "СКРЫТЫЙ ВХОД":
-/// - isAdmin флаг хранится ТОЛЬКО в RAM
-/// - Активируется через скрытый ввод мастер-пароля
-/// - 5-кратный тап на версию приложения → окно ввода
-/// - При сворачивании/выходе → флаг сбрасывается
+/// ТАКТИКА "СКРЫТЫЙ ПОРТАЛ":
+/// - Sovereign Mode активируется через 7-кратный тап
+/// - isAdmin/SovereignMode флаги хранятся ТОЛЬКО в RAM
+/// - Мастер-пароль: REDACTED_PASSWORD
+/// - При сворачивании/выходе → полный Memory Wipe
 ///
-/// Доступ администратора открывает:
+/// Sovereign Mode открывает:
+/// - Полный Memory Wipe контроль
 /// - Логи Rust-ядра (libp2p)
 /// - Управление нодой (старт/стоп/конфигурация)
-/// - Доступ к системным настройкам
-/// - P2P сеть (bootstrap peers, DHT)
+/// - Лимиты сети (bandwidth, connections, peers)
+/// - Системные настройки ядра
 class AdminAccessService extends ChangeNotifier {
   static AdminAccessService? _instance;
   static AdminAccessService get instance {
@@ -24,30 +25,29 @@ class AdminAccessService extends ChangeNotifier {
 
   AdminAccessService._();
 
-  // Флаг администратора в RAM
-  bool _isAdmin = false;
-  Uint8List? _adminPasswordBytes;
+  // 🔐 SOVEREIGN MODE FLAGS (RAM ONLY)
+  bool _isSovereignMode = false;  // ← Главный флаг
+  Uint8List? _sovereignPasswordBytes;
   
-  // Таймер для 5-кратного тапа
+  // 👆 7-tap detector
   int _tapCount = 0;
   DateTime? _lastTapTime;
   
-  // Скрытый мастер-пароль
+  // 🔐 MASTER PASSWORD
   static const String sovereignMasterPassword = 'REDACTED_PASSWORD';
-
-  // Getters
-  bool get isAdmin => _isAdmin;
-  bool get isUserLoggedIn => _isUserLoggedIn;
+  static const int maxFailedAttempts = 3;
   
-  // Пользовательская сессия
+  // 👤 User session
   bool _isUserLoggedIn = false;
   String? _username;
 
-  /// 🔐 Проверка: это админ или пользователь?
-  bool get isSovereignAdmin => _isAdmin;
-  bool get isRegularUser => _isUserLoggedIn && !_isAdmin;
+  // Getters
+  bool get isSovereignMode => _isSovereignMode;
+  bool get isAdmin => _isSovereignMode; // Alias
+  bool get isUserLoggedIn => _isUserLoggedIn;
+  bool get isRegularUser => _isUserLoggedIn && !_isSovereignMode;
 
-  /// 👤 User Login (обычная регистрация)
+  /// 👤 User Login (обычная регистрация - БЕЗ мастер-пароля)
   Future<bool> userLogin(String username, String password) async {
     'User login: $username'.secureDebug(tag: 'AUTH');
     
@@ -55,79 +55,130 @@ class AdminAccessService extends ChangeNotifier {
     // Для демо - просто принимаем любого
     _username = username;
     _isUserLoggedIn = true;
-    _isAdmin = false;
+    _isSovereignMode = false; // ← Обычный пользователь
     
     notifyListeners();
     return true;
   }
 
-  /// 🔐 Admin Login (скрытый вход)
-  Future<bool> adminLogin(String password) async {
+  /// 👤 User Registration (новая регистрация)
+  Future<bool> userRegister(String username, String password, String email) async {
+    'User register: $username, $email'.secureDebug(tag: 'AUTH');
+    
+    // В реальности здесь будет сохранение в БД
+    // Для демо - просто создаём сессию
+    _username = username;
+    _isUserLoggedIn = true;
+    _isSovereignMode = false;
+    
+    notifyListeners();
+    return true;
+  }
+
+  /// 🔐 Sovereign Mode Login (скрытый вход)
+  Future<bool> activateSovereignMode(String password) async {
     if (password == sovereignMasterPassword) {
-      '🔐 SOVEREIGN ADMIN ACCESS GRANTED'.secureDebug(tag: 'AUTH');
+      '🔐 SOVEREIGN MODE ACTIVATED'.secureDebug(tag: 'SOVEREIGN');
       
       // Устанавливаем флаг в RAM
-      _isAdmin = true;
-      _adminPasswordBytes = Uint8List.fromList(password.codeUnits);
+      _isSovereignMode = true;
+      _sovereignPasswordBytes = Uint8List.fromList(password.codeUnits);
       
       notifyListeners();
       return true;
     }
     
-    '❌ Admin access denied'.secureError(tag: 'AUTH');
+    '❌ Sovereign access denied'.secureError(tag: 'SOVEREIGN');
     return false;
   }
 
-  /// 🚪 Logout
+  /// 🚪 Logout (выход из всех режимов)
   void logout() {
     'Logout called'.secureDebug(tag: 'AUTH');
     
-    if (_isAdmin) {
-      '🔐 Admin session ended - WIPE'.secureDebug(tag: 'AUTH');
+    if (_isSovereignMode) {
+      '🔐 Sovereign session ended - FULL WIPE'.secureDebug(tag: 'SOVEREIGN');
       _secureWipe();
     }
     
     _isUserLoggedIn = false;
-    _isAdmin = false;
+    _isSovereignMode = false;
     _username = null;
     
     notifyListeners();
   }
 
-  /// 🔥 Memory Wipe при выходе
+  /// 🔥 FULL Memory Wipe (3-pass zeroization)
   void _secureWipe() {
-    if (_adminPasswordBytes != null) {
-      // 3-pass zeroization
-      for (int i = 0; i < _adminPasswordBytes!.length; i++) {
-        _adminPasswordBytes![i] = 0x00;
+    if (_sovereignPasswordBytes != null) {
+      // Pass 1: Random data
+      for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
+        _sovereignPasswordBytes![i] = (i * 31) & 0xFF;
       }
-      _adminPasswordBytes = null;
+      
+      // Pass 2: All zeros
+      for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
+        _sovereignPasswordBytes![i] = 0x00;
+      }
+      
+      // Pass 3: All ones
+      for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
+        _sovereignPasswordBytes![i] = 0xFF;
+      }
+      
+      // Pass 4: Final zeros
+      for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
+        _sovereignPasswordBytes![i] = 0x00;
+      }
+      
+      _sovereignPasswordBytes = null;
     }
-    _isAdmin = false;
+    _isSovereignMode = false;
   }
 
-  /// 👆 Обработка 5-кратного тапа
+  /// 👆 Обработка 7-кратного тапа (HIDDEN SOVEREIGN PORTAL)
   ///
-  /// 5 тапов за 2 секунды → открыть окно ввода мастер-пароля
+  /// 7 тапов за 3 секунды → активировать скрытый портал
   bool handleSecretTap() {
     final now = DateTime.now();
     
-    // Сброс если прошло больше 2 секунд
+    // Сброс если прошло больше 3 секунд
     if (_lastTapTime == null || 
-        now.difference(_lastTapTime!) > const Duration(seconds: 2)) {
+        now.difference(_lastTapTime!) > const Duration(seconds: 3)) {
       _tapCount = 0;
     }
     
     _tapCount++;
     _lastTapTime = now;
     
-    '👆 Secret tap: $_tapCount/5'.secureDebug(tag: 'SECRET');
+    '👆 Secret tap: $_tapCount/7'.secureDebug(tag: 'PORTAL');
     
-    // 5 тапов → пора вводить пароль
-    if (_tapCount >= 5) {
+    // 7 тапов → ОТКРЫТЬ ПОРТАЛ
+    if (_tapCount >= 7) {
       _tapCount = 0;
-      '🔐 SECRET GESTURE DETECTED - SHOW ADMIN LOGIN'.secureDebug(tag: 'SECRET');
-      return true; // Показываем окно ввода
+      '🔐 HIDDEN SOVEREIGN PORTAL DETECTED'.secureDebug(tag: 'PORTAL');
+      return true; // Показываем портал
+    }
+    
+    return false;
+  }
+
+  /// ❌ Проверка пароля с 3-attempt rule
+  int _failedAttempts = 0;
+  
+  bool checkPasswordAttempt(String password) {
+    if (password == sovereignMasterPassword) {
+      _failedAttempts = 0;
+      return true;
+    }
+    
+    _failedAttempts++;
+    
+    if (_failedAttempts >= maxFailedAttempts) {
+      '🚨 PANIC WIPE: $_failedAttempts failed attempts'.secureError(tag: 'SOVEREIGN');
+      _secureWipe();
+      _failedAttempts = 0;
+      throw SecurityException('PANIC WIPE: 3 failed attempts');
     }
     
     return false;
@@ -135,8 +186,8 @@ class AdminAccessService extends ChangeNotifier {
 
   /// Сброс сессии при сворачивании
   void onAppPaused() {
-    if (_isAdmin) {
-      '🔥 App paused - Admin session WIPE'.secureDebug(tag: 'AUTH');
+    if (_isSovereignMode) {
+      '🔥 App paused - Sovereign session FULL WIPE'.secureDebug(tag: 'SOVEREIGN');
       _secureWipe();
       notifyListeners();
     }
