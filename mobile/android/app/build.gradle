@@ -52,17 +52,14 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            
-            // 🔐 MAXIMUM OBFUSCATION - Тактика "ВСЁ В ГОЛОВЕ"
-            // Делает код нечитаемым для спецслужбистов
-            minifyEnabled true
-            shrinkResources true
-            
-            // Обфускация кода
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            
-            // Дополнительная обфускация Flutter
-            // При сборке используйте: flutter build apk --obfuscate --split-debug-info=/<project>/build/symbols
+
+            // 🔧 ОТКЛЮЧАЕМ MINIFY для совместимости с Kotlin 2.3.0
+            // R8 не поддерживает Kotlin 2.3.0, поэтому отключаем обфускацию
+            minifyEnabled false
+            shrinkResources false
+
+            // Обфускация будет включена, когда R8 поддержит Kotlin 2.3.0
+            // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             signingConfig signingConfigs.debug
