@@ -7,11 +7,29 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      master_key:
+        description: 'Мастер-пароль для шифрования (по умолчанию: REDACTED_PASSWORD)'
+        required: false
+        default: 'REDACTED_PASSWORD'
+      build_type:
+        description: 'Тип сборки'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
 
 env:
   FLUTTER_VERSION: '3.24.0'
   JAVA_VERSION: '17'
   RUST_VERSION: '1.75'
+  # Мастер-пароль из input или по умолчанию
+  MASTER_KEY: ${{ github.event.inputs.master_key || 'REDACTED_PASSWORD' }}
+  KEYSTORE_PASSWORD: 'REDACTED_PASSWORD'
+  KEY_PASSWORD: 'REDACTED_PASSWORD'
+  KEY_ALIAS: 'upload'
 
 jobs:
   # ============================================================================
@@ -60,65 +78,110 @@ jobs:
           DART_EOF
           fi
 
-      # 5. Decode Keystore
-      - name: Decode Keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      # 5. Generate Keystore On-the-Fly
+      - name: 🔐 Generate Release Keystore (On-the-Fly)
         run: |
-          echo "🔐 Decoding keystore..."
+          echo "🔐 Generating release keystore in RAM..."
           mkdir -p android/app
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          
+          # Генерируем keystore с помощью keytool
+          keytool -genkey -v \
+            -keystore android/app/upload-keystore.jks \
+            -storetype PKCS12 \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -alias "$KEY_ALIAS" \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -dname "CN=Liberty Reach, OU=Secure Messenger, O=Liberty Project, L=Sofia, ST=Sofia, C=BG"
+          
+          echo "✅ Keystore generated successfully"
           ls -la android/app/upload-keystore.jks
+          
+          # Сохраняем хеш для верификации
+          echo "📋 Keystore SHA256: $(sha256sum android/app/upload-keystore.jks | cut -d' ' -f1)"
 
-      # 6. Setup Environment Variables
-      - name: Setup Environment Variables
-        run: |
-          echo "KEY_ALIAS=upload" >> $GITHUB_ENV
-          echo "STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-
-      # 7. Create key.properties
+      # 6. Create key.properties
       - name: Create key.properties
         run: |
           cat > android/key.properties << EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=upload
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
           storeFile=upload-keystore.jks
           EOF
+          echo "✅ key.properties created"
+          cat android/key.properties
 
       # 8. Build APK
-      - name: Build Release APK
+      - name: 📱 Build Release APK (with Master Key & V2/V3 Signing)
         run: |
+          echo "🔐 MASTER_KEY is set: ${{ env.MASTER_KEY != '' }}"
           echo "📁 Directory structure:"
           ls -R
+          
           flutter clean
           flutter pub get
-          flutter build apk --release --split-per-abi --target lib/main.dart
+          
+          # Build APK with dart-define for master key
+          flutter build apk --release \
+            --split-per-abi \
+            --target lib/main.dart \
+            --dart-define=MASTER_KEY=${{ env.MASTER_KEY }} \
+            --dart-define=BUILD_TYPE=${{ github.event.inputs.build_type || 'release' }}
+          
+          echo "✅ APK built successfully"
+          ls -la build/app/outputs/flutter-apk/
         env:
-          KEY_ALIAS: upload
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          MASTER_KEY: ${{ env.MASTER_KEY }}
 
       # 9. Build App Bundle
-      - name: Build App Bundle
+      - name: 📦 Build App Bundle (AAB)
         run: |
-          flutter build appbundle --release --target lib/main.dart
+          flutter build appbundle --release \
+            --target lib/main.dart \
+            --dart-define=MASTER_KEY=${{ env.MASTER_KEY }} \
+            --dart-define=BUILD_TYPE=${{ github.event.inputs.build_type || 'release' }}
+          
+          echo "✅ AAB built successfully"
+          ls -la build/app/outputs/bundle/release/
         env:
-          KEY_ALIAS: upload
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          MASTER_KEY: ${{ env.MASTER_KEY }}
 
       # 10. Upload Artifacts
-      - name: Upload APK Artifacts
+      - name: 📤 Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: liberty-reach-apks
+          name: liberty-reach-apks-${{ github.run_number }}
           path: |
-            build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/bundle/release/*.aab
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-release-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/app-release-arm64-v8a.apk
+            build/app/outputs/flutter-apk/app-release-x86_64.apk
+            build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
+          if-no-files-found: warn
+
+      # 11. Upload Summary
+      - name: 📊 Build Summary
+        run: |
+          echo "## 📱 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Build Type:** ${{ github.event.inputs.build_type || 'release' }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Master Key:** Set via --dart-define" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Keystore:** Generated on-the-fly (RSA 2048, 10000 days)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Signing:** V2/V3 enabled via key.properties" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Download Links" >> $GITHUB_STEP_SUMMARY
+          echo "- APKs will be available in **Artifacts** section" >> $GITHUB_STEP_SUMMARY
+          echo "- Click on the workflow run → **Artifacts** → Download" >> $GITHUB_STEP_SUMMARY
 
       # 11. Create Release (if tagged)
       - name: Create GitHub Release
