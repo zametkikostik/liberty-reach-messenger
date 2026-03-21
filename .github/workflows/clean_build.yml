@@ -1,0 +1,150 @@
+name: "🔐 Clean Build (No Cache)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      master_key:
+        description: 'Мастер-пароль для шифрования'
+        required: false
+        default: 'REDACTED_PASSWORD'
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  KEYSTORE_PASSWORD: 'REDACTED_PASSWORD'
+  KEY_PASSWORD: 'REDACTED_PASSWORD'
+  KEY_ALIAS: 'liberty'
+  MASTER_KEY: ${{ github.event.inputs.master_key || 'REDACTED_PASSWORD' }}
+
+jobs:
+  build:
+    name: 📱 Build Clean APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout WITHOUT cache
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: true
+
+      # 2. Setup Java
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      # 3. Setup Flutter WITHOUT cache
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: false
+
+      # 4. 🔥 FORCE CLEAN EVERYTHING
+      - name: 🔥 Force Clean Everything
+        run: |
+          echo "🔥 FORCE CLEANING ALL CACHES..."
+          cd mobile
+          
+          # Delete ALL build artifacts
+          rm -rf build/
+          rm -rf android/build/
+          rm -rf android/app/build/
+          rm -rf android/.gradle/
+          rm -rf android/app/*.jks
+          rm -rf android/app/*.keystore
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.pub-cache/
+          
+          echo "✅ All caches cleaned"
+          ls -la
+
+      # 5. Get Dependencies
+      - name: 📦 Install Dependencies
+        run: |
+          cd mobile
+          flutter clean
+          flutter pub get
+
+      # 6. Generate NEW Keystore
+      - name: 🔐 Generate NEW Keystore
+        run: |
+          echo "🔐 Generating NEW keystore..."
+          cd mobile
+          mkdir -p android/app
+          
+          # DELETE any existing keystore first
+          rm -f android/app/release.jks
+          rm -f android/app/*.jks
+          
+          keytool -genkey -v \
+            -keystore android/app/release.jks \
+            -alias "$KEY_ALIAS" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -dname "CN=Liberty, OU=Sovereign, O=Freedom, L=Sofia, ST=BG, C=BG"
+          
+          echo "✅ NEW keystore generated"
+          ls -la android/app/release.jks
+          
+          # Verify
+          keytool -list -keystore android/app/release.jks -storepass "$KEYSTORE_PASSWORD"
+
+      # 7. Create key.properties
+      - name: 📝 Create key.properties
+        run: |
+          cd mobile
+          cat > android/key.properties << EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=release.jks
+          EOF
+          echo "✅ key.properties created"
+          cat android/key.properties
+
+      # 8. Build APK
+      - name: 🏗️ Build APK
+        run: |
+          cd mobile
+          echo "🔐 MASTER_KEY: ${{ env.MASTER_KEY }}"
+          
+          flutter build apk --release \
+            --split-per-abi \
+            --dart-define=MASTER_KEY=${{ env.MASTER_KEY }} \
+            --dart-define=BUILD_TYPE=release
+          
+          echo "✅ APK built"
+          ls -la build/app/outputs/flutter-apk/
+
+      # 9. Upload Artifacts
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clean-APK-${{ github.run_number }}
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/flutter-apk/app-release-armeabi-v7a.apk
+            mobile/build/app/outputs/flutter-apk/app-release-arm64-v8a.apk
+            mobile/build/app/outputs/flutter-apk/app-release-x86_64.apk
+          retention-days: 30
+
+      # 10. Summary
+      - name: 📊 Summary
+        run: |
+          echo "## 🔐 Clean Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **No Cache:** Flutter & Gradle cache disabled" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **New Keystore:** Generated fresh for this build" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Master Key:** Set via --dart-define" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Signing:** V2/V3 enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Download" >> $GITHUB_STEP_SUMMARY
+          echo "APKs available in **Artifacts** (30 days)" >> $GITHUB_STEP_SUMMARY
