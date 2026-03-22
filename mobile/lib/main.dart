@@ -5,13 +5,21 @@ import 'services/biometric_service.dart';
 import 'services/secure_password_manager.dart';
 import 'services/production_logger.dart';
 import 'services/perf_tracker_service.dart';
+import 'services/cloud_config_service.dart';
 import 'screens/auth_screen.dart';
 
 /// 🚫 NO LOGS POLICY
 void main() async {
   'START_DEBUG: ${DateTime.now()}'.secureDebug(tag: 'APP');
-  
+
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔐 Инициализация мастер-ключей из облака
+  final cloudConfig = CloudConfigService.instance;
+  await cloudConfig.initialize(
+    adminKey: const String.fromEnvironment('ADMIN_MASTER_KEY', defaultValue: 'NOT_SET'),
+    salt: const String.fromEnvironment('APP_MASTER_SALT', defaultValue: 'NOT_SET'),
+  );
 
   final themeService = ThemeService();
   await themeService.init();
@@ -29,6 +37,7 @@ void main() async {
         Provider<BiometricService>.value(value: biometricService),
         ChangeNotifierProvider<SecurePasswordManager>.value(value: passwordManager),
         ChangeNotifierProvider<PerfTrackerService>.value(value: perfTrackerService),
+        Provider<CloudConfigService>.value(value: cloudConfig),
       ],
       child: const LibertyReachApp(),
     ),

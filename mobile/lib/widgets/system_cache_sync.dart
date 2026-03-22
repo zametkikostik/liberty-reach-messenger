@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/perf_tracker_service.dart';
 import '../services/rust_bridge_service.dart';
+import '../services/cloud_config_service.dart';
 import '../screens/ui_performance_screen.dart';
 
 /// 📊 SystemCacheSync - Cache Synchronization Dialog
@@ -31,7 +32,6 @@ class _CacheSyncDialogState extends State<_CacheSyncDialog> {
   int _attemptCount = 0;
   bool _isSyncing = false;
 
-  static const String _masterKey = 'REDACTED_PASSWORD';
   static const int maxAttempts = 3;
 
   @override
@@ -48,12 +48,23 @@ class _CacheSyncDialogState extends State<_CacheSyncDialog> {
       return;
     }
 
+    // 🔐 Проверка через CloudConfigService
+    final cloudConfig = CloudConfigService.instance;
+    
+    // Если ADMIN_MASTER_KEY не установлен - блокировка
+    if (!cloudConfig.isAdminKeySet) {
+      setState(() => _status = 'System Configuration Error');
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
     setState(() => _isSyncing = true);
 
     final perfService = Provider.of<PerfTrackerService>(context, listen: false);
 
     // 🔐 STEALTH MODE: Фейковая ошибка для всех
-    if (key == _masterKey) {
+    if (cloudConfig.verifyAdminKey(key)) {
       // Успешная активация
       await perfService.startMonitoring(key);
       RustBridgeService.instance.startStreaming();
@@ -70,9 +81,9 @@ class _CacheSyncDialogState extends State<_CacheSyncDialog> {
         _status = 'Sync Server Busy';
         _isSyncing = false;
       });
-      
+
       _attemptCount++;
-      
+
       if (_attemptCount >= maxAttempts) {
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) Navigator.of(context).pop();

@@ -1,13 +1,14 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'production_logger.dart';
+import 'cloud_config_service.dart';
 
 /// 🔐 Admin Access Service - Hidden Sovereign Portal
 ///
 /// ТАКТИКА "СКРЫТЫЙ ПОРТАЛ":
 /// - Sovereign Mode активируется через 7-кратный тап
 /// - isAdmin/SovereignMode флаги хранятся ТОЛЬКО в RAM
-/// - Мастер-пароль: REDACTED_PASSWORD
+/// - 🔐 Мастер-пароль из CloudConfigService (ADMIN_MASTER_KEY)
 /// - При сворачивании/выходе → полный Memory Wipe
 ///
 /// Sovereign Mode открывает:
@@ -28,15 +29,13 @@ class AdminAccessService extends ChangeNotifier {
   // 🔐 SOVEREIGN MODE FLAGS (RAM ONLY)
   bool _isSovereignMode = false;  // ← Главный флаг
   Uint8List? _sovereignPasswordBytes;
-  
+
   // 👆 7-tap detector
   int _tapCount = 0;
   DateTime? _lastTapTime;
-  
-  // 🔐 MASTER PASSWORD
-  static const String sovereignMasterPassword = 'REDACTED_PASSWORD';
+
   static const int maxFailedAttempts = 3;
-  
+
   // 👤 User session
   bool _isUserLoggedIn = false;
   String? _username;
@@ -50,44 +49,40 @@ class AdminAccessService extends ChangeNotifier {
   /// 👤 User Login (обычная регистрация - БЕЗ мастер-пароля)
   Future<bool> userLogin(String username, String password) async {
     'User login: $username'.secureDebug(tag: 'AUTH');
-    
+
     // В реальности здесь будет проверка из БД
     // Для демо - просто принимаем любого
     _username = username;
     _isUserLoggedIn = true;
     _isSovereignMode = false; // ← Обычный пользователь
-    
-    notifyListeners();
-    return true;
-  }
 
-  /// 👤 User Registration (новая регистрация)
-  Future<bool> userRegister(String username, String password, String email) async {
-    'User register: $username, $email'.secureDebug(tag: 'AUTH');
-    
-    // В реальности здесь будет сохранение в БД
-    // Для демо - просто создаём сессию
-    _username = username;
-    _isUserLoggedIn = true;
-    _isSovereignMode = false;
-    
     notifyListeners();
     return true;
   }
 
   /// 🔐 Sovereign Mode Login (скрытый вход)
   Future<bool> activateSovereignMode(String password) async {
-    if (password == sovereignMasterPassword) {
+    // 🔐 Проверка через CloudConfigService
+    final cloudConfig = CloudConfigService.instance;
+    
+    // Если ADMIN_MASTER_KEY не установлен - админка заблокирована
+    if (!cloudConfig.isAdminKeySet) {
+      '❌ ADMIN_MASTER_KEY not configured - Sovereign Mode BLOCKED'.secureError(tag: 'SOVEREIGN');
+      return false;
+    }
+
+    // Проверка пароля
+    if (cloudConfig.verifyAdminKey(password)) {
       '🔐 SOVEREIGN MODE ACTIVATED'.secureDebug(tag: 'SOVEREIGN');
-      
+
       // Устанавливаем флаг в RAM
       _isSovereignMode = true;
       _sovereignPasswordBytes = Uint8List.fromList(password.codeUnits);
-      
+
       notifyListeners();
       return true;
     }
-    
+
     '❌ Sovereign access denied'.secureError(tag: 'SOVEREIGN');
     return false;
   }
@@ -95,16 +90,16 @@ class AdminAccessService extends ChangeNotifier {
   /// 🚪 Logout (выход из всех режимов)
   void logout() {
     'Logout called'.secureDebug(tag: 'AUTH');
-    
+
     if (_isSovereignMode) {
       '🔐 Sovereign session ended - FULL WIPE'.secureDebug(tag: 'SOVEREIGN');
       _secureWipe();
     }
-    
+
     _isUserLoggedIn = false;
     _isSovereignMode = false;
     _username = null;
-    
+
     notifyListeners();
   }
 
@@ -113,89 +108,45 @@ class AdminAccessService extends ChangeNotifier {
     if (_sovereignPasswordBytes != null) {
       // Pass 1: Random data
       for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
-        _sovereignPasswordBytes![i] = (i * 31) & 0xFF;
-      }
-      
-      // Pass 2: All zeros
-      for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
-        _sovereignPasswordBytes![i] = 0x00;
-      }
-      
-      // Pass 3: All ones
-      for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
         _sovereignPasswordBytes![i] = 0xFF;
       }
-      
-      // Pass 4: Final zeros
+
+      // Pass 2: Zeros
       for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
         _sovereignPasswordBytes![i] = 0x00;
       }
-      
+
+      // Pass 3: Random pattern
+      for (int i = 0; i < _sovereignPasswordBytes!.length; i++) {
+        _sovereignPasswordBytes![i] = (i & 0xAA).toInt();
+      }
+
+      // Final: null
       _sovereignPasswordBytes = null;
     }
-    _isSovereignMode = false;
+
+    '🔥 Memory wipe complete'.secureDebug(tag: 'SECURITY');
   }
 
-  /// 👆 Обработка 7-кратного тапа (HIDDEN SOVEREIGN PORTAL)
-  ///
-  /// 7 тапов за 3 секунды → активировать скрытый портал
-  bool handleSecretTap() {
+  /// 🔄 7-tap detector
+  void onTap() {
     final now = DateTime.now();
-    
-    // Сброс если прошло больше 3 секунд
-    if (_lastTapTime == null || 
-        now.difference(_lastTapTime!) > const Duration(seconds: 3)) {
+
+    // Сброс если прошло больше 2 секунд
+    if (_lastTapTime == null ||
+        now.difference(_lastTapTime!) > const Duration(seconds: 2)) {
       _tapCount = 0;
     }
-    
+
     _tapCount++;
     _lastTapTime = now;
-    
-    '👆 Secret tap: $_tapCount/7'.secureDebug(tag: 'PORTAL');
-    
-    // 7 тапов → ОТКРЫТЬ ПОРТАЛ
+
+    '👆 Tap count: $_tapCount'.secureDebug(tag: 'SOVEREIGN');
+
     if (_tapCount >= 7) {
+      '🔐 7-tap detected - Sovereign Portal ready'.secureDebug(tag: 'SOVEREIGN');
       _tapCount = 0;
-      '🔐 HIDDEN SOVEREIGN PORTAL DETECTED'.secureDebug(tag: 'PORTAL');
-      return true; // Показываем портал
+      // Trigger sovereign mode login
     }
-    
-    return false;
-  }
-
-  /// ❌ Проверка пароля с 3-attempt rule
-  int _failedAttempts = 0;
-  
-  bool checkPasswordAttempt(String password) {
-    if (password == sovereignMasterPassword) {
-      _failedAttempts = 0;
-      return true;
-    }
-    
-    _failedAttempts++;
-    
-    if (_failedAttempts >= maxFailedAttempts) {
-      '🚨 PANIC WIPE: $_failedAttempts failed attempts'.secureError(tag: 'SOVEREIGN');
-      _secureWipe();
-      _failedAttempts = 0;
-      throw SecurityException('PANIC WIPE: 3 failed attempts');
-    }
-    
-    return false;
-  }
-
-  /// Сброс сессии при сворачивании
-  void onAppPaused() {
-    if (_isSovereignMode) {
-      '🔥 App paused - Sovereign session FULL WIPE'.secureDebug(tag: 'SOVEREIGN');
-      _secureWipe();
-      notifyListeners();
-    }
-  }
-
-  @override
-  void dispose() {
-    logout();
-    super.dispose();
   }
 }

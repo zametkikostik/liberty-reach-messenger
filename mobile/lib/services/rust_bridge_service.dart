@@ -2,6 +2,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 /// 🔗 Rust Bridge Service - Стриминг данных из Rust-ядра
+///
+/// Инициализация с солью из облака:
+/// await RustBridgeService.instance.init(
+///   salt: 'your_salt_from_cloud',
+///   isAdminMode: true,
+/// );
 class RustBridgeService {
   static RustBridgeService? _instance;
   static RustBridgeService get instance {
@@ -16,6 +22,39 @@ class RustBridgeService {
 
   RustCoreData _currentData = RustCoreData.empty();
   Timer? _updateTimer;
+  
+  // 🔐 Флаг инициализации
+  bool _isInitialized = false;
+
+  /// Инициализация Rust-ядра с солью
+  /// 
+  /// Вызывается ОДИН РАЗ при старте приложения
+  /// 
+  /// [salt] - соль из APP_MASTER_SALT (может быть null)
+  /// [isAdminMode] - режим админки (влияет на права доступа)
+  Future<void> init({String? salt, bool isAdminMode = false}) async {
+    if (_isInitialized) {
+      '⚠️ RustBridgeService already initialized'.secureDebug(tag: 'RUST_BRIDGE');
+      return;
+    }
+
+    try {
+      '🔧 Initializing Rust Bridge with salt...'.secureDebug(tag: 'RUST_BRIDGE');
+      
+      // TODO: Вызов FFI для передачи соли в Rust
+      // Здесь будет вызов rust_lib.init(salt, isAdminMode)
+      
+      // Для демо - просто логируем
+      'Salt: ${salt != null && salt.isNotEmpty ? "SET" : "NOT_SET"}'.secureDebug(tag: 'RUST_BRIDGE');
+      'Admin Mode: $isAdminMode'.secureDebug(tag: 'RUST_BRIDGE');
+      
+      _isInitialized = true;
+      '✅ Rust Bridge initialized'.secureDebug(tag: 'RUST_BRIDGE');
+    } catch (e) {
+      '❌ Rust Bridge initialization failed: $e'.secureError(tag: 'RUST_BRIDGE');
+      // Не блокируем приложение при ошибке
+    }
+  }
 
   void startStreaming() {
     _updateTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
