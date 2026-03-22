@@ -1,0 +1,6 @@
+# flutter_rust_bridge configuration
+rust_input: crate::rust_p2p/src/lib.rs
+dart_output: mobile/lib/services/rust_p2p_bridge.dart
+c_output: mobile/lib/services/rust_p2p_bridge.h
+rust_crate_dir: rust_p2p
+dart_format_line_length: 80

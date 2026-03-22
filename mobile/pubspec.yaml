@@ -1,7 +1,7 @@
 name: liberty_reach
-description: "Liberty Reach Messenger v0.7.3-love - Zero-Trust Secure Messenger"
+description: "Liberty Reach Messenger v0.18.0-p2p - Rust P2P Core with E2EE"
 publish_to: 'none'
-version: 0.7.3+7
+version: 0.18.0+18
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -15,7 +15,7 @@ dependencies:
   # Networking
   http: ^1.1.0
   dio: ^5.4.0
-  # flutter_webrtc: ^0.11.7  # TODO: Fix build - SimulcastVideoEncoderFactoryWrapper error
+  # flutter_webrtc: ^0.11.7  # TODO: Fix build
 
   # Security & Cryptography
   flutter_secure_storage: ^9.0.0
@@ -23,10 +23,14 @@ dependencies:
   encrypt: ^5.0.3
   crypto: ^3.0.3
   pointycastle: ^3.7.3
-  convert: ^3.1.1
+  convert: ^3.1.0
 
   # Biometric authentication
   local_auth: ^2.1.6
+
+  # Rust FFI Bridge
+  flutter_rust_bridge: ^2.0.0
+  ffi: ^2.1.0
 
   # Local storage
   shared_preferences: ^2.2.2
