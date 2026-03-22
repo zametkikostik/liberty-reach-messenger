@@ -13,9 +13,9 @@ class WebRTCCallService {
 
   WebRTCCallService._();
 
-  final RTCPeerConnection? _peerConnection;
-  final MediaStream? _localStream;
-  final MediaStream? _remoteStream;
+  RTCPeerConnection? _peerConnection;
+  MediaStream? _localStream;
+  MediaStream? _remoteStream;
   
   bool _isInCall = false;
   bool _isVideoEnabled = false;

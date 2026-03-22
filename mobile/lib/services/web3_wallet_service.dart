@@ -1,5 +1,6 @@
+import 'dart:math';
 import 'package:web3dart/web3dart.dart';
-import 'package:http/http.dart';
+import 'package:http/http.dart' as http;
 
 /// 💰 Web3 Wallet Service
 ///
@@ -28,7 +29,7 @@ class Web3WalletService {
       // Polygon Mainnet
       _client = Web3Client(
         'https://polygon-rpc.com',
-        Client(),
+        http.Client(),
       );
       
       // TODO: Интеграция с MetaMask Flutter SDK

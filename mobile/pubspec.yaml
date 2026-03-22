@@ -1,7 +1,7 @@
 name: liberty_reach
-description: "Liberty Reach Messenger v0.18.0-p2p - Rust P2P Core with E2EE"
+description: "Liberty Reach Messenger v0.21.0-complete - 100% Features Implemented"
 publish_to: 'none'
-version: 0.18.0+18
+version: 0.21.0+21
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -37,7 +37,6 @@ dependencies:
   
   # Web3 для криптовалют
   web3dart: ^2.7.0
-  http: ^1.1.0
   
   # Local storage
   shared_preferences: ^2.2.2
@@ -62,9 +61,6 @@ dependencies:
   # Audio
   # record: ^5.0.4  # Build issues, use native implementation
   audioplayers: ^5.2.1
-  
-  # WebRTC (Video calls) - Stable version
-  flutter_webrtc: ^0.9.38
 
   # GIF Picker (using http instead)
   # giphy_dart: ^2.0.0  # Not available, using direct API

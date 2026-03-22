@@ -10,6 +10,9 @@ import 'services/p2p_network_service.dart';
 import 'services/real_chat_service.dart';
 import 'services/webrtc_call_service.dart';
 import 'services/web3_wallet_service.dart';
+import 'services/family_status_service.dart';
+import 'services/wallpaper_sync_service.dart';
+import 'services/migration_service.dart';
 import 'screens/auth_screen.dart';
 
 /// 🚫 NO LOGS POLICY
@@ -48,6 +51,9 @@ void main() async {
 
   final passwordManager = SecurePasswordManager.instance;
   final perfTrackerService = PerfTrackerService.instance;
+  final familyStatusService = FamilyStatusService.instance;
+  final wallpaperSyncService = WallpaperSyncService.instance;
+  final migrationService = MigrationService.instance;
 
   runApp(
     MultiProvider(
@@ -61,6 +67,9 @@ void main() async {
         Provider<RealChatService>.value(value: chatService),
         Provider<WebRTCCallService>.value(value: callService),
         Provider<Web3WalletService>.value(value: walletService),
+        Provider<FamilyStatusService>.value(value: familyStatusService),
+        Provider<WallpaperSyncService>.value(value: wallpaperSyncService),
+        Provider<MigrationService>.value(value: migrationService),
       ],
       child: const LibertyReachApp(),
     ),
