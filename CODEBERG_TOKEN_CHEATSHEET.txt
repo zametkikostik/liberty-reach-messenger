@@ -1,0 +1,32 @@
+╔═══════════════════════════════════════════════════════════╗
+║         CODEBERG TOKEN - БЫСТРАЯ ИНСТРУКЦИЯ               ║
+╚═══════════════════════════════════════════════════════════╝
+
+1️⃣  ОТКРОЙТЕ
+   https://codeberg.org/settings/applications
+
+2️⃣  СОЗДАЙТЕ ТОКЕН
+   Name: liberty-reach-mirror
+   Scopes: ☑️ repository, ☑️ write:repository
+   Нажмите: "Generate New Token"
+
+3️⃣  СКОПИРУЙТЕ
+   cb_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   ⚠️ Показывается только один раз!
+
+4️⃣  СОХРАНИТЕ
+   export CODEBERG_TOKEN=cb_ваш_токен
+
+5️⃣  ПРОВЕРЬТЕ
+   ./backup-to-all-remotes.sh
+
+═══════════════════════════════════════════════════════════
+
+🔐 АЛЬТЕРНАТИВА: SSH
+
+   ssh-keygen -t ed25519 -C "liberty-reach"
+   cat ~/.ssh/id_ed25519.pub → Codeberg Settings/Keys
+   git remote set-url codeberg git@codeberg.org:...
+   git push codeberg main --force
+
+═══════════════════════════════════════════════════════════
