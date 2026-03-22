@@ -1,25 +1,49 @@
-name = "liberty-reach-push"
+# ============================================================================
+# LIBERTY REACH - Cloudflare Worker Configuration
+# ============================================================================
+# Deploy: npx wrangler deploy
+# URL: liberty-reach-messenger.zametkikostik.workers.dev
+# ============================================================================
+
+name = "liberty-reach-messenger"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# D1 Database Binding
-[[d1_databases]]
-binding = "D1"
-database_name = "liberty-db"
-database_id = "7713033b-1f5c-4f2c-9123-b1c989869035"
-
-# Environment variables
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
 [vars]
-ENVIRONMENT = "production"
+# Repository URLs
+GITHUB_URL = "https://github.com/zametkikostik/liberty-reach-messenger"
+CODEBERG_URL = "https://codeberg.org/zametkikostik/liberty-reach-messenger"
 
-# Development settings
-[dev]
-port = 8787
-local_protocol = "http"
+# API Configuration
+API_TIMEOUT = "10000"
+CACHE_TTL = "3600"
 
-# Production environment
-[env.production]
-[[env.production.d1_databases]]
-binding = "D1"
-database_name = "liberty-db"
-database_id = "7713033b-1f5c-4f2c-9123-b1c989869035"
+# ============================================================================
+# ROUTES (Optional - for custom domains)
+# ============================================================================
+# [[routes]]
+# pattern = "liberty-reach.example.com/*"
+# zone_name = "example.com"
+
+# ============================================================================
+# KV NAMESPACES (Optional - for caching)
+# ============================================================================
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "your-kv-namespace-id"
+
+# ============================================================================
+# DEPLOYMENT
+# ============================================================================
+# Production:
+#   npx wrangler deploy
+#
+# Development:
+#   npx wrangler dev
+#
+# Tail logs:
+#   npx wrangler tail
+# ============================================================================
