@@ -13,7 +13,7 @@ on:
 env:
   FLUTTER_VERSION: '3.24.0'
   JAVA_VERSION: '17'
-  KOTLIN_VERSION: '2.0.21'
+  KOTLIN_VERSION: '2.3.0'  # ✅ Исправлено: совместимая версия
 
 jobs:
   build:
@@ -43,6 +43,7 @@ jobs:
         run: |
           mkdir -p $ANDROID_HOME/licenses
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
       
       # 4. Setup Flutter
       - name: Setup Flutter
@@ -52,18 +53,62 @@ jobs:
           channel: 'stable'
           cache: true
       
-      # 5. Flutter pub get
+      # 5. Update Kotlin version in build.gradle
+      - name: Update Kotlin version
+        run: |
+          # Обновляем версию Kotlin в android/build.gradle
+          sed -i "s/ext.kotlin_version = '.*/ext.kotlin_version = '${KOTLIN_VERSION}'/" android/build.gradle
+          echo "✅ Kotlin version updated to ${KOTLIN_VERSION}"
+          cat android/build.gradle | grep kotlin_version
+      
+      # 6. Create debug keystore (если нет release keystore)
+      - name: Create Debug Keystore
+        run: |
+          if [ ! -f "android/app/release.jks" ]; then
+            echo "⚠️ release.jks not found, creating debug keystore..."
+            keytool -genkey -v \
+              -keystore android/app/release.jks \
+              -alias upload \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, S=Debug, C=US"
+            echo "✅ Debug keystore created"
+          else
+            echo "✅ release.jks found"
+          fi
+      
+      # 7. Create key.properties
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties << EOF
+          storePassword=android
+          keyPassword=android
+          keyAlias=upload
+          storeFile=release.jks
+          EOF
+          echo "✅ key.properties created"
+          cat android/key.properties
+      
+      # 8. Flutter pub get
       - name: Install dependencies
         run: flutter pub get
       
-      # 6. Build Release APK
+      # 9. Build Release APK (с флагом для tree-shake-icons)
       - name: Build Release APK
         run: |
           flutter build apk --release \
             --dart-define=ADMIN_MASTER_KEY=${{ secrets.ADMIN_MASTER_KEY }} \
-            --dart-define=APP_MASTER_SALT=${{ secrets.APP_MASTER_SALT }}
+            --dart-define=APP_MASTER_SALT=${{ secrets.APP_MASTER_SALT }} \
+            --no-tree-shake-icons
+        env:
+          KEY_ALIAS: upload
+          KEY_PASSWORD: android
+          KEYSTORE_PASSWORD: android
       
-      # 7. Upload APK as artifact
+      # 10. Upload APK as artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -71,7 +116,7 @@ jobs:
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
       
-      # 8. Add APK to Release (if triggered by release)
+      # 11. Add APK to Release (if triggered by release)
       - name: Add APK to Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
@@ -80,7 +125,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # 9. Build summary
+      # 12. Build summary
       - name: Build Summary
         run: |
           echo "✅ Build Complete!"
