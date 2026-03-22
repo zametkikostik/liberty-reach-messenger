@@ -10,11 +10,15 @@ import '../models/models.dart';
 class ChatScreen extends StatefulWidget {
   final String contactName;
   final String contactId;
+  final ChatType chatType;
+  final int memberCount;
 
   const ChatScreen({
     super.key,
     required this.contactName,
     required this.contactId,
+    this.chatType = ChatType.private,
+    this.memberCount = 1,
   });
 
   @override

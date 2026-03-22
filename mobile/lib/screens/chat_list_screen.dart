@@ -195,7 +195,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatScreen(
+            builder: (_) => ChatScreen(chatType: chat.type, memberCount: chat.memberCount, 
               contactName: chat.title,
               contactId: chat.id,
               
@@ -223,7 +223,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatScreen(
+            builder: (_) => ChatScreen(chatType: chat.type, memberCount: chat.memberCount, 
               contactName: chat.title,
               contactId: chat.id,
               
@@ -250,7 +250,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatScreen(
+            builder: (_) => ChatScreen(chatType: chat.type, memberCount: chat.memberCount, 
               contactName: chat.title,
               contactId: chat.id,
               
@@ -494,7 +494,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ChatScreen(
+            builder: (_) => ChatScreen(chatType: chat.type, memberCount: chat.memberCount, 
               contactName: chat.title,
               contactId: chat.id,
               

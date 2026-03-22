@@ -193,11 +193,11 @@ class RealChatService {
   }
 
   void startTyping(String chatId, String userId) {
-    _typingIndicators['$chatId_$userId'] = true;
+    _typingIndicators['$chatId$userId'] = true;
   }
 
   void stopTyping(String chatId, String userId) {
-    _typingIndicators['$chatId_$userId'] = false;
+    _typingIndicators['$chatId$userId'] = false;
   }
 
   Future<void> pinMessage(Message message) async {
