@@ -1,7 +1,8 @@
 [package]
 name = "liberty_p2p"
-version = "0.1.0"
+version = "0.24.0"
 edition = "2021"
+description = "Liberty Reach P2P - Общение без блокировок"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
