@@ -2,34 +2,36 @@
 name = "liberty_p2p"
 version = "0.1.0"
 edition = "2021"
-description = "Liberty Reach P2P Core - Rust libp2p with E2EE"
+description = "Liberty Reach P2P Core - Global libp2p with Kademlia DHT"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
-# libp2p stack (tokio-compatible)
+# libp2p with full feature set
 libp2p = { version = "0.53", features = [
     "tokio",
     "tcp",
+    "quic",
     "dns",
     "noise",
     "yamux",
     "mdns",
-    "gossipsub",
     "kad",
+    "gossipsub",
+    "relay",
+    "dcutr",
+    "identify",
     "macros",
-    "quic",
-    "identity",
 ] }
 
 # Async runtime
 tokio = { version = "1.0", features = ["full", "rt-multi-thread", "macros"] }
 
 # FFI for Flutter
-flutter_rust_bridge = "2.0"
+flutter_rust_bridge = "1.80"
 
-# Cryptography (E2EE)
+# Cryptography
 ed25519-dalek = "2.0"
 x25519-dalek = "2.0"
 sha2 = "0.10"
@@ -46,9 +48,11 @@ async-trait = "0.1"
 tracing = "0.1"
 uuid = { version = "1.0", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-
-# Base64 for key exchange
 base64 = "0.21"
+rand = "0.8"
+
+# HTTP for bootstrap resolver
+reqwest = { version = "0.11", features = ["json"] }
 
 [dev-dependencies]
 tokio-test = "0.4"
