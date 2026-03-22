@@ -198,8 +198,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             builder: (_) => ChatScreen(
               contactName: chat.title,
               contactId: chat.id,
-              chatType: chat.type,
-              memberCount: chat.memberCount,
+              
+              
             ),
           ),
         );
@@ -226,8 +226,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             builder: (_) => ChatScreen(
               contactName: chat.title,
               contactId: chat.id,
-              chatType: chat.type,
-              memberCount: chat.memberCount,
+              
+              
             ),
           ),
         );
@@ -253,8 +253,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             builder: (_) => ChatScreen(
               contactName: chat.title,
               contactId: chat.id,
-              chatType: chat.type,
-              memberCount: chat.memberCount,
+              
+              
             ),
           ),
         );
@@ -497,8 +497,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             builder: (_) => ChatScreen(
               contactName: chat.title,
               contactId: chat.id,
-              chatType: chat.type,
-              memberCount: chat.memberCount,
+              
+              
             ),
           ),
         );
