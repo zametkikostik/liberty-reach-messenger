@@ -1,0 +1,96 @@
+name: Build & Release APK
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.16.1-cloud)'
+        required: true
+        default: 'v0.16.1-cloud'
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  KOTLIN_VERSION: '2.0.21'
+
+jobs:
+  build:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    defaults:
+      run:
+        working-directory: mobile
+    
+    steps:
+      # 1. Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # 2. Setup Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+      
+      # 3. Accept Android SDK licenses
+      - name: Accept Android SDK licenses
+        run: |
+          mkdir -p $ANDROID_HOME/licenses
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+      
+      # 4. Setup Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+      
+      # 5. Flutter pub get
+      - name: Install dependencies
+        run: flutter pub get
+      
+      # 6. Build Release APK
+      - name: Build Release APK
+        run: |
+          flutter build apk --release \
+            --dart-define=ADMIN_MASTER_KEY=${{ secrets.ADMIN_MASTER_KEY }} \
+            --dart-define=APP_MASTER_SALT=${{ secrets.APP_MASTER_SALT }}
+      
+      # 7. Upload APK as artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: liberty-reach-apk-${{ github.run_number }}
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+      
+      # 8. Add APK to Release (if triggered by release)
+      - name: Add APK to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: mobile/build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # 9. Build summary
+      - name: Build Summary
+        run: |
+          echo "✅ Build Complete!"
+          echo ""
+          echo "📦 APK Information:"
+          ls -lh build/app/outputs/flutter-apk/*.apk
+          echo ""
+          echo "📍 APK Location:"
+          echo "   mobile/build/app/outputs/flutter-apk/app-release.apk"
+          echo ""
+          echo "🔐 Configuration:"
+          echo "   ADMIN_MASTER_KEY: ${{ secrets.ADMIN_MASTER_KEY != '' && 'SET' || 'NOT_SET' }}"
+          echo "   APP_MASTER_SALT: ${{ secrets.APP_MASTER_SALT != '' && 'SET' || 'NOT_SET' }}"

@@ -40,7 +40,6 @@ class _UIPerformanceScreenState extends State<UIPerformanceScreen> {
   /// 🔒 INSTANT WIPE on Pause
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.paused) {
       final perfService = Provider.of<PerfTrackerService>(context, listen: false);
       perfService.onAppPaused();

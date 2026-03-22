@@ -223,7 +223,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          if (index == 0)
+          if (false) // index disabled
             Container(
               width: 20,
               height: 20,

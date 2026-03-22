@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'production_logger.dart';
 
 /// 🔗 Rust Bridge Service - Стриминг данных из Rust-ядра
 ///

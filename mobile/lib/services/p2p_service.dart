@@ -35,7 +35,7 @@ class P2PService {
 
   P2PService._();
 
-  final Dio _dio = Dio();
+  // final Dio _dio = Dio(); // TODO: Add dio dependency
   final _uuid = const Uuid();
   final D1ApiService _d1Service = D1ApiService();
 
