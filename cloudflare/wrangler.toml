@@ -7,33 +7,45 @@
 
 name = "liberty-reach-messenger"
 main = "worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-03-22"
 
 # ============================================================================
-# ENVIRONMENT VARIABLES
+# ENVIRONMENT VARIABLES (публичные, не секреты!)
 # ============================================================================
 [vars]
 # Repository URLs
 GITHUB_URL = "https://github.com/zametkikostik/liberty-reach-messenger"
 CODEBERG_URL = "https://codeberg.org/zametkikostik/liberty-reach-messenger"
 
-# API Configuration
+# Worker Configuration
+WORKER_VERSION = "v0.16.1-cloud"
 API_TIMEOUT = "10000"
 CACHE_TTL = "3600"
 
 # ============================================================================
-# ROUTES (Optional - for custom domains)
+# ROUTES (Optional - для custom domain)
 # ============================================================================
 # [[routes]]
 # pattern = "liberty-reach.example.com/*"
 # zone_name = "example.com"
 
 # ============================================================================
-# KV NAMESPACES (Optional - for caching)
+# KV NAMESPACES (Optional - для кэширования)
 # ============================================================================
 # [[kv_namespaces]]
 # binding = "CACHE"
 # id = "your-kv-namespace-id"
+
+# ============================================================================
+# SECRETS (добавляются через wrangler secret или в панели Cloudflare)
+# ============================================================================
+# ADMIN_MASTER_KEY - мастер-ключ админки (секрет!)
+# APP_MASTER_SALT - соль для P2P (секрет!)
+# 
+# Добавить секрет:
+#   npx wrangler secret put ADMIN_MASTER_KEY
+#   npx wrangler secret put APP_MASTER_SALT
+# ============================================================================
 
 # ============================================================================
 # DEPLOYMENT
