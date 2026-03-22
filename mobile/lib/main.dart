@@ -7,6 +7,7 @@ import 'services/production_logger.dart';
 import 'services/perf_tracker_service.dart';
 import 'services/cloud_config_service.dart';
 import 'services/p2p_network_service.dart';
+import 'services/real_p2p_service.dart';
 import 'services/real_chat_service.dart';
 import 'services/webrtc_call_service.dart';
 import 'services/web3_wallet_service.dart';
@@ -30,8 +31,11 @@ void main() async {
 
   // 📡 Запуск P2P ноды
   final p2pService = P2PNetworkService.instance;
+  final realP2PService = RealP2PService.instance;
   final userId = 'user_' + DateTime.now().millisecondsSinceEpoch.toString();
+  
   await p2pService.start(userId: userId);
+  await realP2PService.start(userId);
   
   // 💬 Инициализация Real Chat Service с P2P
   final chatService = RealChatService.instance;
