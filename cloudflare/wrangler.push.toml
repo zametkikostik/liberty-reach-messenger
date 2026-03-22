@@ -1,0 +1,46 @@
+# ============================================================================
+# LIBERTY REACH - PUSH NOTIFICATIONS WORKER
+# ============================================================================
+# Deploy: npx wrangler deploy --config wrangler.push.toml
+# URL: liberty-reach-push.zametkikostik.workers.dev
+# ============================================================================
+
+name = "liberty-reach-push"
+main = "push_worker.js"
+compatibility_date = "2024-03-22"
+
+# ============================================================================
+# ENVIRONMENT VARIABLES (публичные)
+# ============================================================================
+[vars]
+# App Configuration
+APP_NAME = "Liberty Reach"
+PUSH_ENABLED = "true"
+
+# ============================================================================
+# SECRETS (добавляются через wrangler secret)
+# ============================================================================
+# FCM_SERVER_KEY - Firebase Cloud Messaging key
+# ADMIN_MASTER_KEY - Admin authentication
+# 
+# Добавить:
+#   npx wrangler secret put FCM_SERVER_KEY --config wrangler.push.toml
+#   npx wrangler secret put ADMIN_MASTER_KEY --config wrangler.push.toml
+# ============================================================================
+
+# ============================================================================
+# ROUTES (если нужен кастомный домен)
+# ============================================================================
+# [[routes]]
+# pattern = "push.liberty-reach.example.com/*"
+# zone_name = "example.com"
+
+# ============================================================================
+# DEPLOYMENT
+# ============================================================================
+# Production:
+#   npx wrangler deploy --config wrangler.push.toml
+#
+# Development:
+#   npx wrangler dev --config wrangler.push.toml
+# ============================================================================
