@@ -51,8 +51,5 @@ chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.21"
 rand = "0.8"
 
-# HTTP for bootstrap resolver
-reqwest = { version = "0.11", features = ["json"] }
-
 [dev-dependencies]
 tokio-test = "0.4"
