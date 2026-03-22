@@ -38,11 +38,11 @@ android {
 
     signingConfigs {
         release {
-            keyAlias "liberty_sovereign"
-            keyPassword "REDACTED_PASSWORD"
-            storePassword "REDACTED_PASSWORD"
+            keyAlias "liberty"
+            keyPassword "liberty123"
+            storePassword "liberty123"
             storeFile file("release.jks")
-            
+
             // 🔐 V2/V3 Signing Scheme (обязательно для Android 7+)
             enableV2Signing true
             enableV3Signing true

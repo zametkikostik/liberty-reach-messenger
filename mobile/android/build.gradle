@@ -1,5 +1,5 @@
 buildscript {
-    // 🔧 Kotlin 2.3.0 (с флагами совместимости в gradle.properties)
+    // 🔧 Kotlin 2.3.0
     ext.kotlin_version = '2.3.0'
     repositories {
         google()
