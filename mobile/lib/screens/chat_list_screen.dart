@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/real_chat_service.dart';
+import '../services/p2p_network_service.dart';
 import '../widgets/seven_tap_gesture.dart';
 import '../widgets/system_cache_sync.dart';
 import 'chat_screen.dart';
 import 'auth_screen.dart';
 import 'saved_messages_screen.dart';
+import 'p2p_peers_screen.dart';
 
 /// 💬 Chat List Screen - Список чатов
 ///
@@ -365,6 +367,40 @@ class _ChatListScreenState extends State<ChatListScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          // 📡 P2P Peers
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: context.watch<P2PNetworkService>().peersStream,
+            builder: (context, snapshot) {
+              final peerCount = snapshot.data?.length ?? 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.lan, color: Colors.white70),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const P2PPeersScreen()),
+                      );
+                    },
+                    tooltip: 'P2P Peers',
+                  ),
+                  if (peerCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          // ⭐ Избранное
           IconButton(
             icon: const Icon(Icons.star, color: Colors.white70),
             onPressed: () {
@@ -374,6 +410,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             },
             tooltip: 'Избранное',
           ),
+          // 🚪 Logout
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white70),
             onPressed: () async {

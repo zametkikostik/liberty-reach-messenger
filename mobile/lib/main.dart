@@ -6,6 +6,7 @@ import 'services/secure_password_manager.dart';
 import 'services/production_logger.dart';
 import 'services/perf_tracker_service.dart';
 import 'services/cloud_config_service.dart';
+import 'services/p2p_network_service.dart';
 import 'screens/auth_screen.dart';
 
 /// 🚫 NO LOGS POLICY
@@ -20,6 +21,10 @@ void main() async {
     adminKey: const String.fromEnvironment('ADMIN_MASTER_KEY', defaultValue: 'NOT_SET'),
     salt: const String.fromEnvironment('APP_MASTER_SALT', defaultValue: 'NOT_SET'),
   );
+
+  // 📡 Запуск P2P ноды
+  final p2pService = P2PNetworkService.instance;
+  await p2pService.start(userId: 'user_' + DateTime.now().millisecondsSinceEpoch.toString());
 
   final themeService = ThemeService();
   await themeService.init();
@@ -38,6 +43,7 @@ void main() async {
         ChangeNotifierProvider<SecurePasswordManager>.value(value: passwordManager),
         ChangeNotifierProvider<PerfTrackerService>.value(value: perfTrackerService),
         Provider<CloudConfigService>.value(value: cloudConfig),
+        Provider<P2PNetworkService>.value(value: p2pService),
       ],
       child: const LibertyReachApp(),
     ),
