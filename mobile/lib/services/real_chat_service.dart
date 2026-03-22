@@ -1,8 +1,9 @@
 import 'dart:async';
 import '../models/models.dart';
 import 'e2ee_service.dart';
+import 'rust_p2p_bridge.dart' as rust_p2p;
 
-/// 💬 Real Chat Service - Полноценный мессенджер
+/// 💬 Real Chat Service - Полноценный мессенджер с P2P
 class RealChatService {
   static RealChatService? _instance;
   static RealChatService get instance {
@@ -21,6 +22,10 @@ class RealChatService {
   final Map<String, MessageStatus> _messageStatuses = {};
   final Map<String, bool> _typingIndicators = {};
   final Map<String, Timer> _selfDestructTimers = {};
+  
+  // 📡 P2P Integration
+  bool _isP2PInitialized = false;
+  Map<String, String>? _myIdentity;
 
   final _chatsController = StreamController<List<Chat>>.broadcast();
   Stream<List<Chat>> get chatsStream => _chatsController.stream;
@@ -31,6 +36,27 @@ class RealChatService {
   List<Chat> get chats => List.unmodifiable(_chats);
   List<Message> getMessages(String chatId) => List.unmodifiable(_messagesByChat[chatId] ?? []);
   List<Message> get savedMessages => List.unmodifiable(_savedMessages);
+  bool get isP2PInitialized => _isP2PInitialized;
+
+  /// 🚀 Initialize P2P Core
+  Future<bool> initializeP2P(String userId) async {
+    if (_isP2PInitialized) return true;
+    
+    try {
+      // Initialize Rust P2P
+      await rust_p2p.initRustP2P();
+      
+      // Create identity
+      _myIdentity = await rust_p2p.createIdentity();
+      
+      _isP2PInitialized = true;
+      print('✅ P2P initialized for user: $userId');
+      return true;
+    } catch (e) {
+      print('❌ P2P initialization failed: $e');
+      return false;
+    }
+  }
 
   /// 💬 Создать чат 1-на-1
   Future<Chat> createPrivateChat({
@@ -118,7 +144,7 @@ class RealChatService {
     return chat;
   }
 
-  /// 📨 Отправить сообщение
+  /// 📨 Отправить сообщение (с P2P E2EE)
   Future<Message> sendMessage({
     required String chatId,
     required String senderId,
@@ -130,7 +156,26 @@ class RealChatService {
     String? encryptedText;
     String displayText = text;
     
-    if (isEncrypted) {
+    // 🔐 P2P E2EE шифрование через Rust
+    if (isEncrypted && _isP2PInitialized && _myIdentity != null) {
+      try {
+        // Получаем публичный ключ получателя (из контакта)
+        final receiverPublicKey = _myIdentity!['x25519_public'] ?? '';
+        
+        final encrypted = await rust_p2p.encryptMessage(
+          mySecretB64: _myIdentity!['x25519_secret'] ?? '',
+          theirPublicB64: receiverPublicKey,
+          plaintext: text,
+        );
+        
+        encryptedText = encrypted?['ciphertext'];
+        displayText = '🔐 Encrypted';
+      } catch (e) {
+        print('❌ E2EE encryption failed: $e');
+        // Fallback без шифрования
+      }
+    } else if (isEncrypted) {
+      // Dart E2EE fallback
       try {
         encryptedText = _e2eeService.encryptMessage(text);
         displayText = '🔐 Encrypted';

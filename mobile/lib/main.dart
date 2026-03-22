@@ -7,6 +7,9 @@ import 'services/production_logger.dart';
 import 'services/perf_tracker_service.dart';
 import 'services/cloud_config_service.dart';
 import 'services/p2p_network_service.dart';
+import 'services/real_chat_service.dart';
+import 'services/webrtc_call_service.dart';
+import 'services/web3_wallet_service.dart';
 import 'screens/auth_screen.dart';
 
 /// 🚫 NO LOGS POLICY
@@ -24,7 +27,18 @@ void main() async {
 
   // 📡 Запуск P2P ноды
   final p2pService = P2PNetworkService.instance;
-  await p2pService.start(userId: 'user_' + DateTime.now().millisecondsSinceEpoch.toString());
+  final userId = 'user_' + DateTime.now().millisecondsSinceEpoch.toString();
+  await p2pService.start(userId: userId);
+  
+  // 💬 Инициализация Real Chat Service с P2P
+  final chatService = RealChatService.instance;
+  await chatService.initializeP2P(userId);
+
+  // 📞 WebRTC готов
+  final callService = WebRTCCallService.instance;
+  
+  // 💰 Web3 готов
+  final walletService = Web3WalletService.instance;
 
   final themeService = ThemeService();
   await themeService.init();
@@ -44,6 +58,9 @@ void main() async {
         ChangeNotifierProvider<PerfTrackerService>.value(value: perfTrackerService),
         Provider<CloudConfigService>.value(value: cloudConfig),
         Provider<P2PNetworkService>.value(value: p2pService),
+        Provider<RealChatService>.value(value: chatService),
+        Provider<WebRTCCallService>.value(value: callService),
+        Provider<Web3WalletService>.value(value: walletService),
       ],
       child: const LibertyReachApp(),
     ),
