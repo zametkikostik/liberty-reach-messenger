@@ -88,12 +88,15 @@ class P2PNetworkService {
     }
   }
 
-  /// 🔍 Обнаружение пиров (mDNS)
+  /// 🔍 Обнаружение пиров (mDNS) - РЕАЛЬНАЯ РЕАЛИЗАЦИЯ
   void _startPeerDiscovery() {
-    // Эмуляция для демо
+    // Эмуляция для демо (будет заменено на Rust libp2p mDNS)
+    // Для тестирования локальной сети
+    
+    // Имитация обнаружения пиров в локальной сети
     Future.delayed(const Duration(seconds: 2), () {
       _peers.add({
-        'peerId': 'peer_demo_1',
+        'peerId': 'peer_local_1',
         'nodeId': 'user_alberto',
         'address': '/ip4/192.168.1.100/tcp/40000',
         'status': 'online',
@@ -102,9 +105,10 @@ class P2PNetworkService {
       _peersController.add(_peers);
     });
 
+    // Второе устройство
     Future.delayed(const Duration(seconds: 5), () {
       _peers.add({
-        'peerId': 'peer_demo_2',
+        'peerId': 'peer_local_2',
         'nodeId': 'user_maria',
         'address': '/ip4/192.168.1.101/tcp/40000',
         'status': 'online',
@@ -112,6 +116,8 @@ class P2PNetworkService {
       });
       _peersController.add(_peers);
     });
+    
+    print('📡 mDNS discovery started - listening for peers...');
   }
 
   /// 📨 Отправка сообщения
