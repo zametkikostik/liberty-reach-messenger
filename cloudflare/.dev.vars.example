@@ -1,0 +1,44 @@
+# ============================================================================
+# LIBERTY REACH - Development Variables
+# ============================================================================
+# Copy this file to .dev.vars
+# DO NOT COMMIT .dev.vars TO GIT!
+# ============================================================================
+
+# Repository URLs (public)
+GITHUB_URL="https://github.com/zametkikostik/liberty-reach-messenger"
+CODEBERG_URL="https://codeberg.org/zametkikostik/liberty-reach-messenger"
+
+# Worker Configuration
+WORKER_VERSION="v0.16.1-cloud"
+API_TIMEOUT="10000"
+CACHE_TTL="3600"
+
+# ============================================================================
+# SECRETS (for local development only)
+# ============================================================================
+# ⚠️ These are EXAMPLE values - use your own!
+# ⚠️ NEVER commit .dev.vars to git!
+
+# Admin Master Key (secret!)
+ADMIN_MASTER_KEY="YourDevSecretKey123"
+
+# App Master Salt (secret!)
+APP_MASTER_SALT="YourDevSaltValue456"
+
+# ============================================================================
+# USAGE
+# ============================================================================
+# 1. Copy this file:
+#    cp .dev.vars.example .dev.vars
+#
+# 2. Edit .dev.vars with your values:
+#    nano .dev.vars
+#
+# 3. Run development server:
+#    npx wrangler dev
+#
+# 4. For production, use:
+#    npx wrangler secret put ADMIN_MASTER_KEY
+#    npx wrangler deploy
+# ============================================================================

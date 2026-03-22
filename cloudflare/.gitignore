@@ -1,0 +1,11 @@
+# Cloudflare Worker development files
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Wrangler cache
+.wrangler/
+.dev/
+
+# Node modules (if using npm)
+node_modules/
